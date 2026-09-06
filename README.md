@@ -49,6 +49,8 @@ Plus one tool:
 | ---------- | -------------------------------------------------------------- |
 | `/studio`  | Pixel Studio — upload a picture, dither it, take the code       |
 
+(The studio does two effects: scroll-develop and cursor-scatter.)
+
 ## Structure
 
 ```
@@ -66,7 +68,8 @@ src/
 │   └── studio/                 Pixel Studio — the upload-and-export tool
 └── lib/
     ├── categories.ts           single source of truth for nav, home grid, headers
-    ├── dither.ts               the scroll-develop dither, shared by demo + studio
+    ├── dither.ts               image → grid of ink cells, shared by demos + studio
+    ├── particleField.ts        the cursor-scatter force model, likewise shared
     ├── pixelExport.ts          code generation for the studio's React/HTML output
     ├── prompts.ts              the prompt behind every motion, keyed by demo id
     └── site.ts                 brand name, tagline and the thedarwin.co origin
@@ -86,7 +89,19 @@ travels inside the generated code as a data URI. It is re-encoded to at most
 640px first, because the grid only needs a few hundred columns — that keeps a
 pasted export in the tens of KB rather than the megabytes.
 
-Two outputs, both self-contained:
+Those cells then drive one of two effects, and the switch does not re-dither
+anything — the Print controls mean the same thing in either mode:
+
+- **Scroll develop** — each cell takes its own threshold from a hash of its
+  coordinates and scroll progress sweeps past them, so the picture comes up in
+  grain instead of fading in.
+- **Cursor scatter** — each cell becomes a particle that remembers where it
+  belongs. The cursor pushes the nearby ones out, stirs them with a turbulence
+  keyed off each particle's own phase, and lifts them; every particle eases
+  toward that target rather than being set to it, which is what makes it read as
+  smoke rather than a shockwave, and why it drifts home when you leave.
+
+Two outputs per effect, all self-contained:
 
 - **React** — a `.tsx` client component with no dependency beyond React. The
   develop lag is a hand-rolled lerp, not a spring, so there is nothing to
@@ -94,13 +109,14 @@ Two outputs, both self-contained:
 - **HTML** — one block of markup, CSS and script for a page that is not running
   React.
 
-Both drive off window scroll over a section that pins its own stage, which is
-how you would actually use it on a page. The preview in the studio runs the
-same lerp the export does, so the Catch-up slider means the same thing in both.
+The develop exports drive off window scroll over a section that pins its own
+stage; the scatter exports are a block that fills its container and listens for
+the pointer. Either way the preview in the studio runs the same maths the export
+does — the same lerp, the same force model — so what you scrub is what you ship.
 
-The maths lives in `src/lib/dither.ts` and is shared by the studio, the
-`/scroll` demo and the generated code, so there is only ever one implementation
-of it.
+The maths lives in `src/lib/dither.ts` and `src/lib/particleField.ts`, shared by
+the studio, the `/scroll` and `/hover` demos and the generated code, so there is
+only ever one implementation of each.
 
 ### Three conventions worth knowing
 

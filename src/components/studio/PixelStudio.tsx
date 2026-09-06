@@ -10,18 +10,30 @@ import {
   type DitherOptions,
 } from "@/lib/dither";
 import {
+  PARTICLE_DEFAULTS,
+  createField,
+  stepField,
+  type Field,
+} from "@/lib/particleField";
+import {
   formatBytes,
   toHtml,
+  toHtmlScatter,
   toReact,
+  toReactScatter,
   type ExportSettings,
 } from "@/lib/pixelExport";
 
 /**
- * Upload a picture, watch it develop, take the code.
+ * Upload a picture, work it, take the code.
  *
- * The preview runs the same lerp the exported code does — not a spring — so
- * the Catch-up slider means the same thing here as it will on the page you
- * paste into. What you scrub is what you ship.
+ * One pipeline, two endings: the image is dithered to a grid of ink cells, and
+ * those cells either develop as you scroll or scatter under your cursor. Both
+ * read the same cell list, so the Print controls mean the same thing in either
+ * mode and switching does not re-dither anything.
+ *
+ * The preview runs the same maths the exported code does — the same lerp, the
+ * same force model — so what you scrub here is what you ship.
  */
 
 /** The embedded copy only feeds a grid a few hundred cells wide, so it can be
@@ -29,15 +41,20 @@ import {
 const EMBED_MAX = 640;
 
 type Settings = ExportSettings;
+type Mode = "scroll" | "scatter";
 
 const INITIAL: Settings = {
   ...DEFAULTS,
+  ...PARTICLE_DEFAULTS,
   ink: "#12222a",
   ground: "#f1efe9",
   round: false,
   runway: 3.2,
-  ease: 0.16,
+  lag: 0.16,
 };
+
+/** Scatter wants ink on a dark ground, the way the original footer did. */
+const SCATTER_COLOURS = { ink: "#f4f4f7", ground: "#0c0c11" };
 
 /** Re-encode to something small enough to paste. */
 function embed(image: HTMLImageElement): string {
@@ -182,6 +199,7 @@ export function PixelStudio() {
   const [hot, setHot] = useState(false);
   const [set, setSet] = useState<Settings>(INITIAL);
   const [tab, setTab] = useState<"react" | "html">("react");
+  const [mode, setMode] = useState<Mode>("scroll");
   const [copied, setCopied] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -192,6 +210,10 @@ export function PixelStudio() {
   const cellsRef = useRef<Cells | null>(null);
   const cellRef = useRef(1);
   const currentRef = useRef(0);
+  const fieldRef = useRef<Field | null>(null);
+  /** Cursor target and its eased follower, in backing-store pixels. */
+  const cursor = useRef({ tx: -9999, ty: -9999, x: -9999, y: -9999 });
+
   /** Live settings for the rAF loop, so it never closes over a stale value. */
   const setRef = useRef(set);
   useEffect(() => {
@@ -202,6 +224,22 @@ export function PixelStudio() {
     (p: Partial<Settings>) => setSet((s) => ({ ...s, ...p })),
     []
   );
+
+  const switchMode = useCallback((next: Mode) => {
+    setMode(next);
+    currentRef.current = 0;
+    cursor.current = { tx: -9999, ty: -9999, x: -9999, y: -9999 };
+
+    // Scatter reads best as light ink on a dark ground, the way the original
+    // footer did; the develop reads as ink on paper. Only swap the palette if
+    // it is still the other mode's default — a colour you picked is yours.
+    const paper = { ink: INITIAL.ink, ground: INITIAL.ground };
+    const want = next === "scatter" ? SCATTER_COLOURS : paper;
+    const other = next === "scatter" ? paper : SCATTER_COLOURS;
+    setSet((s) =>
+      s.ink === other.ink && s.ground === other.ground ? { ...s, ...want } : s
+    );
+  }, []);
 
   const load = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -261,9 +299,11 @@ export function PixelStudio() {
     return buildCells(data, cols, rows, dither);
   }, [image, dither]);
 
-  // The paint loop reads through a ref so it never has to be torn down.
+  // The paint loop reads through refs so it never has to be torn down. The
+  // scatter field is just the same cells with somewhere to put their offsets.
   useEffect(() => {
     cellsRef.current = cells;
+    fieldRef.current = cells ? createField(cells) : null;
   }, [cells]);
 
   const cellCount = cells?.n ?? 0;
@@ -273,32 +313,67 @@ export function PixelStudio() {
   useEffect(() => {
     const cv = canvasRef.current;
     const stage = stageRef.current;
+    // The scroll container only exists in scroll mode — scatter has no runway.
     const scroller = scrollRef.current;
-    if (!cv || !stage || !scroller) return;
+    if (!cv || !stage) return;
+    if (mode === "scroll" && !scroller) return;
     ctxRef.current = cv.getContext("2d");
 
     let frame = 0;
     let lastKey = "";
+
+    // Scroll fits the print to the stage; scatter leaves margin all round for
+    // the particles to disperse into, and paints across the whole canvas.
+    let W = 0;
+    let H = 0;
+    let originX = 0;
+    let originY = 0;
 
     const layout = () => {
       const ctx = ctxRef.current;
       const cells = cellsRef.current;
       if (!ctx || !cells) return;
       const box = stage.getBoundingClientRect();
-      const cell = Math.min(
-        (box.width * 0.8) / cells.cols,
-        (box.height * 0.88) / cells.rows
-      );
-      cellRef.current = cell;
-
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      cv.style.width = `${cells.cols * cell}px`;
-      cv.style.height = `${cells.rows * cell}px`;
-      cv.width = Math.round(cells.cols * cell * dpr);
-      cv.height = Math.round(cells.rows * cell * dpr);
-      // Assigning width/height clears the transform, so set it after.
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (mode === "scroll") {
+        const cell = Math.min(
+          (box.width * 0.8) / cells.cols,
+          (box.height * 0.88) / cells.rows
+        );
+        cellRef.current = cell;
+        W = Math.round(cells.cols * cell * dpr);
+        H = Math.round(cells.rows * cell * dpr);
+        cv.style.width = `${cells.cols * cell}px`;
+        cv.style.height = `${cells.rows * cell}px`;
+        originX = 0;
+        originY = 0;
+      } else {
+        W = Math.round(box.width * dpr);
+        H = Math.round(box.height * dpr);
+        cv.style.width = `${box.width}px`;
+        cv.style.height = `${box.height}px`;
+        const cell = Math.min((W * 0.72) / cells.cols, (H * 0.72) / cells.rows);
+        cellRef.current = cell;
+        originX = (W - cells.cols * cell) / 2;
+        originY = (H - cells.rows * cell) / 2;
+      }
+
+      cv.width = W;
+      cv.height = H;
+      // Assigning width/height clears the transform. Scroll paints in CSS
+      // pixels and scales by dpr; scatter works in backing-store pixels.
+      ctx.setTransform(
+        mode === "scroll" ? dpr : 1,
+        0,
+        0,
+        mode === "scroll" ? dpr : 1,
+        0,
+        0
+      );
     };
+
+    const start = performance.now();
 
     const loop = () => {
       const ctx = ctxRef.current;
@@ -313,22 +388,61 @@ export function PixelStudio() {
           layout();
         }
 
-        const span = scroller.scrollHeight - scroller.clientHeight;
-        const target = span > 0 ? scroller.scrollTop / span : 0;
-        currentRef.current += (target - currentRef.current) * s.ease;
-        paintCells(ctx, cells, cellRef.current, currentRef.current, s.ink, s.round);
+        if (mode === "scroll" && scroller) {
+          const span = scroller.scrollHeight - scroller.clientHeight;
+          const target = span > 0 ? scroller.scrollTop / span : 0;
+          currentRef.current += (target - currentRef.current) * s.lag;
+          paintCells(ctx, cells, cellRef.current, currentRef.current, s.ink, s.round);
+        } else if (mode === "scatter") {
+          const field = fieldRef.current;
+          const c = cursor.current;
+          if (field) {
+            if (c.x < -9000) {
+              c.x = c.tx;
+              c.y = c.ty;
+            } else {
+              c.x += (c.tx - c.x) * 0.1;
+              c.y += (c.ty - c.y) * 0.1;
+            }
+            stepField(ctx, field, {
+              width: W,
+              height: H,
+              cell: cellRef.current,
+              originX,
+              originY,
+              ink: s.ink,
+              time: (performance.now() - start) / 1000,
+              cursorX: c.x,
+              cursorY: c.y,
+              params: s,
+              calm: false,
+            });
+          }
+        }
       }
       frame = requestAnimationFrame(loop);
     };
 
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [mode]);
 
   const code = useMemo(() => {
     if (!dataUri) return "";
-    return tab === "react" ? toReact(dataUri, set) : toHtml(dataUri, set);
-  }, [dataUri, set, tab]);
+    if (mode === "scroll") {
+      return tab === "react" ? toReact(dataUri, set) : toHtml(dataUri, set);
+    }
+    return tab === "react" ? toReactScatter(dataUri, set) : toHtmlScatter(dataUri, set);
+  }, [dataUri, set, tab, mode]);
+
+  const fileName2 =
+    mode === "scroll"
+      ? tab === "react"
+        ? "ScrollDither.tsx"
+        : "scroll-dither.html"
+      : tab === "react"
+        ? "PixelScatter.tsx"
+        : "pixel-scatter.html";
 
   const copy = async () => {
     try {
@@ -345,7 +459,7 @@ export function PixelStudio() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = tab === "react" ? "ScrollDither.tsx" : "scroll-dither.html";
+    a.download = fileName2;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -356,28 +470,68 @@ export function PixelStudio() {
     <div className="flex flex-col gap-6">
       {/* ---------------------------------------------------------- preview */}
       <section className="overflow-hidden rounded-2xl border border-ink-800 bg-ink-900">
-        <header className="flex items-center justify-between gap-4 border-b border-ink-800 px-5 py-3">
-          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-400">
-            Scroll the stage to develop
-          </p>
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 px-5 py-3">
+          <div className="flex items-center gap-1">
+            {(["scroll", "scatter"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMode(m)}
+                aria-pressed={mode === m}
+                className={`rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                  mode === m
+                    ? "bg-ink-700 text-ink-50"
+                    : "text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                }`}
+              >
+                {m === "scroll" ? "Scroll develop" : "Cursor scatter"}
+              </button>
+            ))}
+            <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.22em] text-ink-600">
+              {mode === "scroll" ? "scroll the stage" : "move over the stage"}
+            </span>
+          </div>
           <p className="font-mono text-[11px] tabular-nums text-ink-600">
-            {grid} · {cellCount.toLocaleString()} cells
+            {grid} · {cellCount.toLocaleString()} {mode === "scroll" ? "cells" : "particles"}
           </p>
         </header>
 
-        <div
-          ref={scrollRef}
-          className="scroll-thin relative h-[520px] overflow-y-auto"
-          style={{ background: set.ground }}
-        >
+        {mode === "scroll" ? (
+          <div
+            ref={scrollRef}
+            className="scroll-thin relative h-[520px] overflow-y-auto"
+            style={{ background: set.ground }}
+          >
+            <div
+              ref={stageRef}
+              className="sticky top-0 flex h-[520px] items-center justify-center overflow-hidden"
+            >
+              <canvas ref={canvasRef} aria-hidden className="block" />
+            </div>
+            <div style={{ height: `${set.runway * 100}%` }} />
+          </div>
+        ) : (
           <div
             ref={stageRef}
-            className="sticky top-0 flex h-[520px] items-center justify-center overflow-hidden"
+            onPointerMove={(e) => {
+              const cv = canvasRef.current;
+              if (!cv) return;
+              const box = cv.getBoundingClientRect();
+              if (!box.width) return;
+              cursor.current.tx = (e.clientX - box.left) * (cv.width / box.width);
+              cursor.current.ty = (e.clientY - box.top) * (cv.height / box.height);
+            }}
+            onPointerLeave={() => {
+              // Park the cursor far away so influence decays and it reassembles.
+              cursor.current.tx = -9999;
+              cursor.current.ty = -9999;
+            }}
+            className="relative h-[520px] cursor-crosshair overflow-hidden"
+            style={{ background: set.ground }}
           >
             <canvas ref={canvasRef} aria-hidden className="block" />
           </div>
-          <div style={{ height: `${set.runway * 100}%` }} />
-        </div>
+        )}
       </section>
 
       {/* ---------------------------------------------------------- source */}
@@ -433,7 +587,9 @@ export function PixelStudio() {
           </div>
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2.5">
             <Check label="Invert" checked={set.invert} onChange={(invert) => patch({ invert })} />
-            <Check label="Round dots" checked={set.round} onChange={(round) => patch({ round })} />
+            {mode === "scroll" && (
+              <Check label="Round dots" checked={set.round} onChange={(round) => patch({ round })} />
+            )}
           </div>
         </section>
 
@@ -495,40 +651,103 @@ export function PixelStudio() {
             />
           </div>
 
-          <h2 className="mb-4 mt-7 text-sm font-semibold tracking-tight text-ink-50">Develop</h2>
-          <div className="grid gap-4">
-            <Slider
-              label="Grain spread"
-              value={set.spread}
-              min={0}
-              max={0.95}
-              step={0.05}
-              format={(v) => v.toFixed(2)}
-              onChange={(spread) => patch({ spread })}
-            />
-            <Slider
-              label="Scroll runway"
-              value={set.runway}
-              min={1.5}
-              max={6}
-              step={0.1}
-              format={(v) => `${v.toFixed(1)}×`}
-              onChange={(runway) => patch({ runway })}
-            />
-            <Slider
-              label="Catch-up"
-              value={set.ease}
-              min={0.04}
-              max={0.6}
-              step={0.02}
-              format={(v) => v.toFixed(2)}
-              onChange={(ease) => patch({ ease })}
-            />
-          </div>
+          <h2 className="mb-4 mt-7 text-sm font-semibold tracking-tight text-ink-50">
+            {mode === "scroll" ? "Develop" : "Scatter"}
+          </h2>
+          {mode === "scroll" ? (
+            <div className="grid gap-4">
+              <Slider
+                label="Grain spread"
+                value={set.spread}
+                min={0}
+                max={0.95}
+                step={0.05}
+                format={(v) => v.toFixed(2)}
+                onChange={(spread) => patch({ spread })}
+              />
+              <Slider
+                label="Scroll runway"
+                value={set.runway}
+                min={1.5}
+                max={6}
+                step={0.1}
+                format={(v) => `${v.toFixed(1)}×`}
+                onChange={(runway) => patch({ runway })}
+              />
+              <Slider
+                label="Catch-up"
+                value={set.lag}
+                min={0.04}
+                max={0.6}
+                step={0.02}
+                format={(v) => v.toFixed(2)}
+                onChange={(lag) => patch({ lag })}
+              />
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              <Slider
+                label="Cursor reach"
+                value={set.reach}
+                min={0.1}
+                max={0.9}
+                step={0.02}
+                format={(v) => v.toFixed(2)}
+                onChange={(reach) => patch({ reach })}
+              />
+              <Slider
+                label="Push"
+                value={set.push}
+                min={0}
+                max={0.24}
+                step={0.005}
+                format={(v) => v.toFixed(3)}
+                onChange={(push) => patch({ push })}
+              />
+              <Slider
+                label="Turbulence"
+                value={set.drift}
+                min={0}
+                max={0.09}
+                step={0.002}
+                format={(v) => v.toFixed(3)}
+                onChange={(drift) => patch({ drift })}
+              />
+              <Slider
+                label="Lift"
+                value={set.lift}
+                min={0}
+                max={0.08}
+                step={0.002}
+                format={(v) => v.toFixed(3)}
+                onChange={(lift) => patch({ lift })}
+              />
+              <Slider
+                label="Float"
+                value={set.ease}
+                min={0.02}
+                max={0.4}
+                step={0.01}
+                format={(v) => v.toFixed(2)}
+                onChange={(ease) => patch({ ease })}
+              />
+              <Slider
+                label="Thinning"
+                value={set.thin}
+                min={0}
+                max={0.9}
+                step={0.05}
+                format={(v) => v.toFixed(2)}
+                onChange={(thin) => patch({ thin })}
+              />
+            </div>
+          )}
 
           <button
             type="button"
-            onClick={() => setSet(INITIAL)}
+            onClick={() =>
+              setSet(mode === "scroll" ? INITIAL : { ...INITIAL, ...SCATTER_COLOURS })
+            }
             className="mt-6 rounded-lg border border-ink-700 bg-ink-850 px-3 py-1.5 font-mono text-[11px] text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-50"
           >
             Reset
@@ -556,8 +775,7 @@ export function PixelStudio() {
               </button>
             ))}
             <span className="ml-2 font-mono text-[11px] text-ink-600">
-              {tab === "react" ? "ScrollDither.tsx" : "scroll-dither.html"} ·{" "}
-              {formatBytes(new Blob([code]).size)}
+              {fileName2} · {formatBytes(new Blob([code]).size)}
             </span>
           </div>
 

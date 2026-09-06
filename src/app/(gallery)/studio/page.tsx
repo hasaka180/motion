@@ -17,9 +17,9 @@ export default function Page() {
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Pixel Studio</h1>
         <p className="mt-3 max-w-2xl text-balance text-ink-400">
           Drop in a picture and it is thresholded through an 8×8 Bayer matrix into
-          a grid of ink cells. Each cell carries its own threshold, so scrolling
-          brings the picture up in grain rather than fading it in. Tune it, then
-          take the code.
+          a grid of ink cells. Those cells can do one of two things: develop as
+          you scroll, like a print coming up in the tray, or scatter like air
+          under your cursor. Tune it, then take the code.
         </p>
         <p className="mt-4 font-mono text-xs text-ink-600">
           nothing is uploaded — the image is read in your browser and travels
