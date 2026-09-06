@@ -68,6 +68,35 @@ export function Sidebar() {
               </Link>
             );
           })}
+          <Link
+            href="/studio"
+            className={`relative shrink-0 rounded-lg px-3 py-2 text-sm transition-colors lg:mt-2 lg:shrink lg:border-t lg:border-ink-800 lg:pt-4 ${
+              pathname === "/studio" ? "text-ink-50" : "text-ink-400 hover:text-ink-200"
+            }`}
+          >
+            {pathname === "/studio" && (
+              <motion.span
+                layoutId="nav-active"
+                className="absolute inset-0 rounded-lg bg-ink-800"
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              />
+            )}
+            <span className="relative flex items-center gap-2.5 whitespace-nowrap">
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{
+                  background:
+                    pathname === "/studio"
+                      ? "linear-gradient(135deg, #6366f1, #22d3ee)"
+                      : "var(--color-ink-600)",
+                }}
+              />
+              Pixel Studio
+              <span className="ml-auto hidden font-mono text-[10px] text-ink-600 lg:inline">
+                tool
+              </span>
+            </span>
+          </Link>
         </nav>
 
         <div className="hidden border-t border-ink-800 px-6 py-4 lg:block">

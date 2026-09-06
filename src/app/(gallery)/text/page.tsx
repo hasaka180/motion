@@ -17,6 +17,7 @@ export default function Page() {
       <PageHeader category={category} />
       <div className="grid gap-6 xl:grid-cols-2">
         <DemoCard
+          id="text/GlitchOnHover"
           title="Glitch on hover"
           description="Ten displaced copies of the headline, each clipped to its own band or block and randomising on its own clock. Hover the stage to drive it."
           tags={["clip-path", "mix-blend-mode", "MotionValue", "rAF"]}
@@ -26,6 +27,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="text/StaggerWords"
           title="Word stagger"
           description="Split on spaces, each word rising out of its own overflow mask."
           tags={["variants", "staggerChildren"]}
@@ -35,6 +37,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="text/ScrambleText"
           title="Character scramble"
           description="Glyphs cycle until each index settles, driven by one rAF loop."
           tags={["requestAnimationFrame", "no library"]}
@@ -44,6 +47,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="text/MaskedLineReveal"
           title="Masked line reveal"
           description="Editorial-style entrance — lines slide up and un-rotate behind a mask."
           tags={["overflow-hidden", "rotate", "stagger"]}
@@ -53,6 +57,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="text/GradientShine"
           title="Gradient shine"
           description="An oversized gradient clipped to the glyphs and panned forever."
           tags={["background-clip", "backgroundPosition"]}

@@ -16,6 +16,7 @@ export default function Page() {
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
         <DemoCard
+          id="hero/ScatteredMediaHero"
           title="Scattered media constellation"
           description="Thumbnails ring a centred wordmark, drifting on idle and swinging on pointer parallax at three different depths."
           tags={["useSpring", "depth parallax", "layered transforms"]}
@@ -25,6 +26,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="hero/SpotlightHero"
           title="Cursor spotlight"
           description="A radial gradient tracks the pointer over a masked grid while the headline rises into place."
           tags={["useMotionValue", "useMotionTemplate", "mask-image"]}
@@ -34,6 +36,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="hero/GradientMeshHero"
           title="Gradient mesh"
           description="Three blurred blobs on independent loops behind a frosted glass panel."
           tags={["keyframes", "blur", "backdrop-filter"]}
@@ -43,6 +46,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="hero/SplitRevealHero"
           title="Split curtain reveal"
           description="Two panels retract from the centre seam, then the headline scales down into focus."
           tags={["transform", "staggered delay", "cubic-bezier"]}

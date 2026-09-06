@@ -15,6 +15,7 @@ export default function Page() {
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
         <DemoCard
+          id="intro/CounterPreloader"
           title="Counter preloader"
           description="Counts to 100, then the loader lifts off the page it was covering."
           tags={["animate()", "useTransform", "AnimatePresence"]}
@@ -24,6 +25,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="intro/CurtainReveal"
           title="Sequential curtain"
           description="Six columns clear the stage one after another, wiping the content in."
           tags={["stagger", "transform", "ease-in-out-quart"]}
@@ -33,6 +35,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="intro/LogoDrawIntro"
           title="Logo draw"
           description="An SVG stroke draws itself with pathLength, handing off to a masked wordmark."
           tags={["pathLength", "SVG", "letter stagger"]}

@@ -17,6 +17,7 @@ export default function Page() {
       <PageHeader category={category} />
       <div className="grid gap-6 xl:grid-cols-2">
         <DemoCard
+          id="transitions/PixelDissolve"
           title="Pixel dissolve"
           description="A grid of tiles assembles the incoming frame along a diagonal front. Each tile carries its own slice of the image, so the picture builds out of the mesh rather than being uncovered behind it."
           tags={["background-position", "diagonal stagger", "448 tiles"]}
@@ -26,6 +27,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="transitions/SlatTransition"
           title="Slat wipe"
           description="Columns sweep down to cover, the view swaps while hidden, then the same columns keep travelling to uncover — one continuous pass, not a curtain reopening."
           tags={["stagger", "phase machine", "remount reset"]}
@@ -35,6 +37,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="transitions/SharedLayoutTabs"
           title="Shared-layout tabs"
           description="A layoutId underline glides between tabs while the panel swaps out before the next one enters."
           tags={["layoutId", "AnimatePresence", "mode: wait"]}
@@ -44,6 +47,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="transitions/ModalTransition"
           title="Spring modal"
           description="Backdrop fade plus a spring-scaled dialog. Dismiss on backdrop click or Escape."
           tags={["AnimatePresence", "spring", "backdrop-blur"]}
@@ -53,6 +57,7 @@ export default function Page() {
         </DemoCard>
 
         <DemoCard
+          id="transitions/RouteStack"
           title="Push / pop route stack"
           description="Direction is stored alongside the index, so custom variants flip the enter and exit offsets."
           tags={["custom variants", "direction", "popLayout"]}

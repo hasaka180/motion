@@ -50,16 +50,16 @@ export const categories: Category[] = [
     slug: "scroll",
     title: "Scroll Animations",
     blurb:
-      "Scroll-linked motion — a cinematic 3D fly-through, pinned media sections, rising image cards, parallax layers, viewport reveals and a pinned horizontal section.",
-    count: 6,
+      "Scroll-linked motion — a dithered portrait that develops in the scroll, a cinematic 3D fly-through, pinned media sections, rising image cards, parallax layers, viewport reveals and a pinned horizontal section.",
+    count: 7,
     gradient: ["#6366f1", "#8b5cf6"],
   },
   {
     slug: "hover",
     title: "Hover & Micro-interactions",
     blurb:
-      "The small stuff. A hover-swap editorial index, magnetic buttons, 3D tilt with glare and a shared-element nav indicator.",
-    count: 4,
+      "The small stuff. A hover-swap editorial index, a pixel shape that scatters like air under the cursor, magnetic buttons, 3D tilt with glare and a shared-element nav indicator.",
+    count: 5,
     gradient: ["#ec4899", "#f59e0b"],
   },
   {
