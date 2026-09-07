@@ -10,6 +10,12 @@ import {
   type DitherOptions,
 } from "@/lib/dither";
 import {
+  ASSEMBLE_DEFAULTS,
+  createAssembly,
+  paintAssembly,
+  type Assembly,
+} from "@/lib/assembleField";
+import {
   PARTICLE_DEFAULTS,
   createField,
   stepField,
@@ -18,8 +24,10 @@ import {
 import {
   formatBytes,
   toHtml,
+  toHtmlAssemble,
   toHtmlScatter,
   toReact,
+  toReactAssemble,
   toReactScatter,
   type ExportSettings,
 } from "@/lib/pixelExport";
@@ -41,11 +49,12 @@ import {
 const EMBED_MAX = 640;
 
 type Settings = ExportSettings;
-type Mode = "scroll" | "scatter";
+type Mode = "scroll" | "scatter" | "assemble";
 
 const INITIAL: Settings = {
   ...DEFAULTS,
   ...PARTICLE_DEFAULTS,
+  ...ASSEMBLE_DEFAULTS,
   ink: "#12222a",
   ground: "#f1efe9",
   round: false,
@@ -53,8 +62,9 @@ const INITIAL: Settings = {
   lag: 0.16,
 };
 
-/** Scatter wants ink on a dark ground, the way the original footer did. */
-const SCATTER_COLOURS = { ink: "#f4f4f7", ground: "#0c0c11" };
+/** Scatter and assemble want ink on a dark ground; the develop wants paper. */
+const DARK_COLOURS = { ink: "#f4f4f7", ground: "#0c0c11" };
+const PAPER_COLOURS = { ink: INITIAL.ink, ground: INITIAL.ground };
 
 /** Re-encode to something small enough to paste. */
 function embed(image: HTMLImageElement): string {
@@ -211,6 +221,9 @@ export function PixelStudio() {
   const cellRef = useRef(1);
   const currentRef = useRef(0);
   const fieldRef = useRef<Field | null>(null);
+  const assemblyRef = useRef<Assembly | null>(null);
+  /** When the current assemble run started, or 0 while it is holding. */
+  const runAtRef = useRef(0);
   /** Cursor target and its eased follower, in backing-store pixels. */
   const cursor = useRef({ tx: -9999, ty: -9999, x: -9999, y: -9999 });
 
@@ -230,12 +243,12 @@ export function PixelStudio() {
     currentRef.current = 0;
     cursor.current = { tx: -9999, ty: -9999, x: -9999, y: -9999 };
 
-    // Scatter reads best as light ink on a dark ground, the way the original
-    // footer did; the develop reads as ink on paper. Only swap the palette if
-    // it is still the other mode's default — a colour you picked is yours.
-    const paper = { ink: INITIAL.ink, ground: INITIAL.ground };
-    const want = next === "scatter" ? SCATTER_COLOURS : paper;
-    const other = next === "scatter" ? paper : SCATTER_COLOURS;
+    // Scatter and assemble read best as light ink on a dark ground; the
+    // develop reads as ink on paper. Only swap the palette if it is still the
+    // other default — a colour you picked is yours.
+    const wantsDark = next !== "scroll";
+    const want = wantsDark ? DARK_COLOURS : PAPER_COLOURS;
+    const other = wantsDark ? PAPER_COLOURS : DARK_COLOURS;
     setSet((s) =>
       s.ink === other.ink && s.ground === other.ground ? { ...s, ...want } : s
     );
@@ -306,6 +319,23 @@ export function PixelStudio() {
     fieldRef.current = cells ? createField(cells) : null;
   }, [cells]);
 
+  // Where each particle starts is baked in, so it is rebuilt only when the
+  // cells or the layout parameters change — not while dragging swirl or
+  // duration, which apply at paint time. Rebuilding re-runs the animation.
+  useEffect(() => {
+    assemblyRef.current = cells
+      ? createAssembly(cells, {
+          distance: set.distance,
+          swirl: set.swirl,
+          turbulence: set.turbulence,
+          stagger: set.stagger,
+          order: set.order,
+          duration: set.duration,
+        })
+      : null;
+    runAtRef.current = performance.now();
+  }, [cells, set.distance, set.order, set.stagger, set.swirl, set.turbulence, set.duration]);
+
   const cellCount = cells?.n ?? 0;
   const grid = cells ? `${cells.cols} × ${cells.rows}` : "—";
 
@@ -353,7 +383,10 @@ export function PixelStudio() {
         H = Math.round(box.height * dpr);
         cv.style.width = `${box.width}px`;
         cv.style.height = `${box.height}px`;
-        const cell = Math.min((W * 0.72) / cells.cols, (H * 0.72) / cells.rows);
+        // Both cursor modes and the assemble need margin around the picture —
+        // one for particles to disperse into, one for dust to arrive from.
+        const room = mode === "assemble" ? 0.62 : 0.72;
+        const cell = Math.min((W * room) / cells.cols, (H * room) / cells.rows);
         cellRef.current = cell;
         originX = (W - cells.cols * cell) / 2;
         originY = (H - cells.rows * cell) / 2;
@@ -393,6 +426,26 @@ export function PixelStudio() {
           const target = span > 0 ? scroller.scrollTop / span : 0;
           currentRef.current += (target - currentRef.current) * s.lag;
           paintCells(ctx, cells, cellRef.current, currentRef.current, s.ink, s.round);
+        } else if (mode === "assemble") {
+          const assembly = assemblyRef.current;
+          if (assembly) {
+            const elapsed = runAtRef.current
+              ? (performance.now() - runAtRef.current) / 1000
+              : 0;
+            paintAssembly(ctx, assembly, {
+              width: W,
+              height: H,
+              cell: cellRef.current,
+              originX,
+              originY,
+              ink: s.ink,
+              fill: s.fill,
+              progress: Math.min(1, elapsed / s.duration),
+              time: elapsed,
+              params: s,
+              calm: false,
+            });
+          }
         } else if (mode === "scatter") {
           const field = fieldRef.current;
           const c = cursor.current;
@@ -432,17 +485,19 @@ export function PixelStudio() {
     if (mode === "scroll") {
       return tab === "react" ? toReact(dataUri, set) : toHtml(dataUri, set);
     }
+    if (mode === "assemble") {
+      return tab === "react" ? toReactAssemble(dataUri, set) : toHtmlAssemble(dataUri, set);
+    }
     return tab === "react" ? toReactScatter(dataUri, set) : toHtmlScatter(dataUri, set);
   }, [dataUri, set, tab, mode]);
 
-  const fileName2 =
+  const stem =
     mode === "scroll"
-      ? tab === "react"
-        ? "ScrollDither.tsx"
-        : "scroll-dither.html"
-      : tab === "react"
-        ? "PixelScatter.tsx"
-        : "pixel-scatter.html";
+      ? ["ScrollDither.tsx", "scroll-dither.html"]
+      : mode === "assemble"
+        ? ["PixelAssemble.tsx", "pixel-assemble.html"]
+        : ["PixelScatter.tsx", "pixel-scatter.html"];
+  const fileName2 = tab === "react" ? stem[0] : stem[1];
 
   const copy = async () => {
     try {
@@ -472,7 +527,7 @@ export function PixelStudio() {
       <section className="overflow-hidden rounded-2xl border border-ink-800 bg-ink-900">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 px-5 py-3">
           <div className="flex items-center gap-1">
-            {(["scroll", "scatter"] as const).map((m) => (
+            {(["scroll", "assemble", "scatter"] as const).map((m) => (
               <button
                 key={m}
                 type="button"
@@ -484,15 +539,32 @@ export function PixelStudio() {
                     : "text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                 }`}
               >
-                {m === "scroll" ? "Scroll develop" : "Cursor scatter"}
+                {m === "scroll"
+                  ? "Scroll develop"
+                  : m === "assemble"
+                    ? "Assemble"
+                    : "Cursor scatter"}
               </button>
             ))}
-            <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.22em] text-ink-600">
-              {mode === "scroll" ? "scroll the stage" : "move over the stage"}
-            </span>
+            {mode === "assemble" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  runAtRef.current = performance.now();
+                }}
+                className="ml-2 rounded-md border border-ink-700 bg-ink-850 px-2.5 py-1 font-mono text-[11px] text-ink-200 transition-colors hover:border-ink-600 hover:text-ink-50"
+              >
+                Replay
+              </button>
+            ) : (
+              <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.22em] text-ink-600">
+                {mode === "scroll" ? "scroll the stage" : "move over the stage"}
+              </span>
+            )}
           </div>
           <p className="font-mono text-[11px] tabular-nums text-ink-600">
-            {grid} · {cellCount.toLocaleString()} {mode === "scroll" ? "cells" : "particles"}
+            {grid} · {cellCount.toLocaleString()}{" "}
+            {mode === "scroll" ? "cells" : "particles"}
           </p>
         </header>
 
@@ -514,6 +586,7 @@ export function PixelStudio() {
           <div
             ref={stageRef}
             onPointerMove={(e) => {
+              if (mode !== "scatter") return;
               const cv = canvasRef.current;
               if (!cv) return;
               const box = cv.getBoundingClientRect();
@@ -526,7 +599,9 @@ export function PixelStudio() {
               cursor.current.tx = -9999;
               cursor.current.ty = -9999;
             }}
-            className="relative h-[520px] cursor-crosshair overflow-hidden"
+            className={`relative h-[520px] overflow-hidden ${
+              mode === "scatter" ? "cursor-crosshair" : ""
+            }`}
             style={{ background: set.ground }}
           >
             <canvas ref={canvasRef} aria-hidden className="block" />
@@ -652,9 +727,66 @@ export function PixelStudio() {
           </div>
 
           <h2 className="mb-4 mt-7 text-sm font-semibold tracking-tight text-ink-50">
-            {mode === "scroll" ? "Develop" : "Scatter"}
+            {mode === "scroll" ? "Develop" : mode === "assemble" ? "Arrival" : "Scatter"}
           </h2>
-          {mode === "scroll" ? (
+          {mode === "assemble" ? (
+            <div className="grid gap-4">
+              <Slider
+                label="Throw distance"
+                value={set.distance}
+                min={0.05}
+                max={1.2}
+                step={0.02}
+                format={(v) => v.toFixed(2)}
+                onChange={(distance) => patch({ distance })}
+              />
+              <Slider
+                label="Swirl"
+                value={set.swirl}
+                min={0}
+                max={3.2}
+                step={0.1}
+                format={(v) => `${v.toFixed(1)} rad`}
+                onChange={(swirl) => patch({ swirl })}
+              />
+              <Slider
+                label="Turbulence"
+                value={set.turbulence}
+                min={0}
+                max={0.2}
+                step={0.005}
+                format={(v) => v.toFixed(3)}
+                onChange={(turbulence) => patch({ turbulence })}
+              />
+              <Slider
+                label="Stagger"
+                value={set.stagger}
+                min={0}
+                max={0.9}
+                step={0.05}
+                format={(v) => v.toFixed(2)}
+                onChange={(stagger) => patch({ stagger })}
+              />
+              <Slider
+                label="Order"
+                value={set.order}
+                min={0}
+                max={1}
+                step={0.05}
+                format={(v) => (v < 0.2 ? "random" : v > 0.8 ? "radial" : v.toFixed(2))}
+                onChange={(order) => patch({ order })}
+              />
+              <Slider
+                label="Duration"
+                value={set.duration}
+                min={0.6}
+                max={8}
+                step={0.1}
+                format={(v) => `${v.toFixed(1)}s`}
+                onChange={(duration) => patch({ duration })}
+              />
+            </div>
+          ) : mode === "scroll" ? (
             <div className="grid gap-4">
               <Slider
                 label="Grain spread"
@@ -746,7 +878,7 @@ export function PixelStudio() {
           <button
             type="button"
             onClick={() =>
-              setSet(mode === "scroll" ? INITIAL : { ...INITIAL, ...SCATTER_COLOURS })
+              setSet(mode === "scroll" ? INITIAL : { ...INITIAL, ...DARK_COLOURS })
             }
             className="mt-6 rounded-lg border border-ink-700 bg-ink-850 px-3 py-1.5 font-mono text-[11px] text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-50"
           >

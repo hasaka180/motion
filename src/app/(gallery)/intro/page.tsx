@@ -1,6 +1,7 @@
 import { DemoCard } from "@/components/site/DemoCard";
 import { PageHeader } from "@/components/site/PageHeader";
 import { getCategory } from "@/lib/categories";
+import { ParticleAssemble } from "@/components/demos/intro/ParticleAssemble";
 import { CounterPreloader } from "@/components/demos/intro/CounterPreloader";
 import { CurtainReveal } from "@/components/demos/intro/CurtainReveal";
 import { LogoDrawIntro } from "@/components/demos/intro/LogoDrawIntro";
@@ -14,6 +15,16 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="intro/ParticleAssemble"
+          title="Particle assemble"
+          description="A picture forming out of dust. Every cell of the dithered image starts thrown out from the centre, transparent and small, then spirals home and fades up on its own delay — so the image resolves out of noise instead of sliding in."
+          tags={["canvas", "Bayer dither", "spiral converge", "staggered delays"]}
+          stageClassName="h-[520px]"
+        >
+          <ParticleAssemble />
+        </DemoCard>
+
         <DemoCard
           id="intro/CounterPreloader"
           title="Counter preloader"

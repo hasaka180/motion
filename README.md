@@ -1,10 +1,14 @@
 # Darwin
 
 A categorised repository of production-ready React animations, by
-[thedarwin.co](https://thedarwin.co). Every demo is a single self-contained
-file, and every motion ships with two things beside it: the **prompt** that
-produces it and the **code** that runs it. Open the page, hit **Replay**, then
-copy whichever one you need.
+[thedarwin.co](https://thedarwin.co). Every motion ships with two things beside
+it: the **prompt** that produces it and the **code** that runs it. Open the
+page, hit **Replay**, then copy whichever one you need.
+
+Most demos are a single self-contained file. The pixel demos are the exception:
+they share their maths with the studio and with the code it generates, so it
+only exists once — see `src/lib/dither.ts`, `particleField.ts` and
+`assembleField.ts`.
 
 Built with **Next.js 16** (App Router), **Tailwind CSS v4** and **Motion**.
 
@@ -35,7 +39,7 @@ npm run lint
 | Route          | Category                   | Demos |
 | -------------- | -------------------------- | ----- |
 | `/hero`        | Hero Sections              | 4     |
-| `/intro`       | Intro Animations           | 3     |
+| `/intro`       | Intro Animations           | 4     |
 | `/text`        | Text Animations            | 5     |
 | `/carousel`    | Carousels                  | 4     |
 | `/scroll`      | Scroll Animations          | 7     |
@@ -49,7 +53,7 @@ Plus one tool:
 | ---------- | -------------------------------------------------------------- |
 | `/studio`  | Pixel Studio — upload a picture, dither it, take the code       |
 
-(The studio does two effects: scroll-develop and cursor-scatter.)
+(The studio does three effects: scroll-develop, assemble and cursor-scatter.)
 
 ## Structure
 
@@ -68,6 +72,7 @@ src/
 │   └── studio/                 Pixel Studio — the upload-and-export tool
 └── lib/
     ├── categories.ts           single source of truth for nav, home grid, headers
+    ├── assembleField.ts        the dust-assembly model, likewise shared
     ├── dither.ts               image → grid of ink cells, shared by demos + studio
     ├── particleField.ts        the cursor-scatter force model, likewise shared
     ├── pixelExport.ts          code generation for the studio's React/HTML output
@@ -89,19 +94,24 @@ travels inside the generated code as a data URI. It is re-encoded to at most
 640px first, because the grid only needs a few hundred columns — that keeps a
 pasted export in the tens of KB rather than the megabytes.
 
-Those cells then drive one of two effects, and the switch does not re-dither
-anything — the Print controls mean the same thing in either mode:
+Those cells then drive one of three effects, and switching does not re-dither
+anything — the Print controls mean the same thing in every mode:
 
 - **Scroll develop** — each cell takes its own threshold from a hash of its
   coordinates and scroll progress sweeps past them, so the picture comes up in
   grain instead of fading in.
+- **Assemble** — each cell starts thrown out from the centre along its own line,
+  transparent and small, then spirals home while fading up and growing, with a
+  turbulence that dies as it lands. Departures are staggered, so the picture
+  resolves out of noise rather than sliding into place. It runs once, when the
+  section comes into view.
 - **Cursor scatter** — each cell becomes a particle that remembers where it
   belongs. The cursor pushes the nearby ones out, stirs them with a turbulence
   keyed off each particle's own phase, and lifts them; every particle eases
   toward that target rather than being set to it, which is what makes it read as
   smoke rather than a shockwave, and why it drifts home when you leave.
 
-Two outputs per effect, all self-contained:
+Two outputs per effect — six in all, every one self-contained:
 
 - **React** — a `.tsx` client component with no dependency beyond React. The
   develop lag is a hand-rolled lerp, not a spring, so there is nothing to
@@ -110,13 +120,14 @@ Two outputs per effect, all self-contained:
   React.
 
 The develop exports drive off window scroll over a section that pins its own
-stage; the scatter exports are a block that fills its container and listens for
-the pointer. Either way the preview in the studio runs the same maths the export
+stage; the scatter and assemble exports are a block that fills its container,
+one listening for the pointer and the other for coming into view. Either way the preview in the studio runs the same maths the export
 does — the same lerp, the same force model — so what you scrub is what you ship.
 
-The maths lives in `src/lib/dither.ts` and `src/lib/particleField.ts`, shared by
-the studio, the `/scroll` and `/hover` demos and the generated code, so there is
-only ever one implementation of each.
+The maths lives in `src/lib/dither.ts`, `src/lib/particleField.ts` and
+`src/lib/assembleField.ts`, shared by the studio, the `/scroll`, `/hover` and
+`/intro` demos and the generated code, so there is only ever one implementation
+of each.
 
 ### Three conventions worth knowing
 

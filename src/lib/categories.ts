@@ -26,8 +26,8 @@ export const categories: Category[] = [
     slug: "intro",
     title: "Intro Animations",
     blurb:
-      "First-load choreography. Counters, sequential curtains and SVG logo draws that hand off to the page.",
-    count: 3,
+      "First-load choreography. A picture forming out of dust, counters, sequential curtains and SVG logo draws that hand off to the page.",
+    count: 4,
     gradient: ["#22d3ee", "#3b82f6"],
   },
   {

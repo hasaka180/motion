@@ -64,6 +64,40 @@ export const prompts: Record<string, string> = {
   `),
 
   // --------------------------------------------------------------- intro
+  "intro/ParticleAssemble": p(`
+    Build a picture that forms out of dust.
+
+    Reduce the image to a grid of ink cells first — sample it down to around 120
+    columns and threshold it through an 8x8 Bayer matrix, so tone is carried by
+    how many cells survive in a neighbourhood rather than by any grey. Those
+    cells are the particles.
+
+    Give every particle a start away from home: push it out along its own line
+    from the centre of the picture, by a random distance around 40% of the
+    picture's width, with the angle jittered so the cloud is loose rather than a
+    clean explosion. Pushing along its own line matters — the cloud keeps the
+    picture's silhouette instead of collapsing to a disc. Start it transparent
+    and at about half size.
+
+    Over the run, each particle eases home on an ease-out cubic while its start
+    offset is rotated by an angle that unwinds to zero, so it spirals in rather
+    than running straight down its radius. Fade it up and grow it to full size
+    as it arrives, and add a turbulence keyed off the particle's own phase that
+    is strongest at the start and gone by the time it lands. Stagger departures
+    with a per-particle delay — blend random order with radial distance from the
+    centre so you can dial between dust and a spreading wave — but scale the
+    remaining window so everything still lands together at the end.
+
+    Store every offset in units of the picture's width, so a resize moves the
+    particles with the picture instead of changing the shape of the motion. Run
+    it once when the stage comes into view, stop asking for frames when it
+    lands, and under prefers-reduced-motion paint the finished picture instead
+    of animating it in.
+
+    ${SHARED} One requestAnimationFrame loop writing straight to a canvas; there
+    is no per-particle DOM here.
+  `),
+
   "intro/CounterPreloader": p(`
     Build a full-bleed preloader that counts from 0 to 100. Animate a single
     numeric motion value and derive the displayed text from it, rather than
