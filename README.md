@@ -39,7 +39,7 @@ npm run lint
 
 | Route          | Category                   | Demos |
 | -------------- | -------------------------- | ----- |
-| `/hero`        | Hero Sections              | 4     |
+| `/hero`        | Hero Sections              | 5     |
 | `/intro`       | Intro Animations           | 4     |
 | `/text`        | Text Animations            | 5     |
 | `/carousel`    | Carousels                  | 4     |

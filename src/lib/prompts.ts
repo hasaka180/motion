@@ -20,6 +20,47 @@ const SHARED =
 
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
+  "hero/BlobKidHero": p(`
+    Build a hero background: a soft toy character — a blob kid — walking a
+    bright studio, following the pointer, and playing when left alone.
+
+    Do not model it as a mesh. Build the body as a signed distance field of
+    about thirteen capsules and raymarch it in a single fullscreen fragment
+    shader, welding the capsules with a polynomial smooth-minimum at around
+    0.08. That smooth-min is the character: it fuses the arms into the torso
+    and the feet into the shins with a soft crease rather than a seam, which is
+    what makes it read as one moulded toy. Watch the radii against the spacing
+    — limbs closer together than their radii will weld into a single mass.
+
+    Toy proportions: an enormous spherical head about a third of the total
+    height, no neck, a rounded trunk, short thick arms hanging at the sides and
+    stubby legs ending in blunt feet.
+
+    Light it like a studio, in three colours. A warm key from above and in
+    front, a cyan fill from the left, and a saturated orange bounce off the
+    floor whose strength falls off exponentially with height, so it only
+    reaches the legs and feet — that last one is what makes the feet glow.
+    Sit it on a near-white gradient with a soft contact shadow and a warm
+    bounce on the floor beneath it. Add a wide soft specular and a gentle
+    fresnel rim, or it will not separate from a white room.
+
+    Pose the field from a skeleton: compute bone matrices on the CPU and send
+    the shader only each capsule's two endpoints and radius, so it knows
+    nothing about walking. Drive the pose from a flat array of joint angles so
+    two poses can be blended. Write a procedural walk cycle — opposed hips and
+    shoulders, a knee that bends on the back swing, a bob at twice the stride —
+    and idle activities: a hop with tucked knees, a spin with the arms out, a
+    wave. Ease every joint toward its target so changing behaviour is a
+    transition rather than a cut. Turn side-on while travelling, and back to
+    face the viewer when it stops.
+
+    Raymarch below native resolution — the field is soft, so it costs almost
+    nothing visually — and skip the march entirely for rays that miss a
+    bounding sphere around the body.
+
+    ${SHARED} Raw WebGL2, no 3D library: one triangle and one shader.
+  `),
+
   "hero/ScatteredMediaHero": p(`
     Build a hero section where a ring of media thumbnails is scattered around a
     centred wordmark. Assign each thumbnail one of three depth values. Every

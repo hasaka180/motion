@@ -1,6 +1,7 @@
 import { DemoCard } from "@/components/site/DemoCard";
 import { PageHeader } from "@/components/site/PageHeader";
 import { getCategory } from "@/lib/categories";
+import { BlobKidHero } from "@/components/demos/hero/BlobKidHero";
 import { ScatteredMediaHero } from "@/components/demos/hero/ScatteredMediaHero";
 import { SpotlightHero } from "@/components/demos/hero/SpotlightHero";
 import { GradientMeshHero } from "@/components/demos/hero/GradientMeshHero";
@@ -15,6 +16,16 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="hero/BlobKidHero"
+          title="Blob kid"
+          description="A soft toy character raymarched as one signed distance field — thirteen capsules welded with a smooth minimum, which is what fuses the limbs into the body with a crease instead of a seam. It walks to your pointer, then turns and plays."
+          tags={["WebGL2", "raymarched SDF", "smooth minimum", "no dependencies"]}
+          stageClassName="h-[620px]"
+        >
+          <BlobKidHero />
+        </DemoCard>
+
         <DemoCard
           id="hero/ScatteredMediaHero"
           title="Scattered media constellation"
