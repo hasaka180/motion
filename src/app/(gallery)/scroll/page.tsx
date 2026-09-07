@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DemoCard } from "@/components/site/DemoCard";
 import { PageHeader } from "@/components/site/PageHeader";
 import { getCategory } from "@/lib/categories";
-import { DitheredScrollPortrait } from "@/components/demos/scroll/DitheredScrollPortrait";
+import { DitheredScrollPhoto } from "@/components/demos/scroll/DitheredScrollPhoto";
 import { CinematicTunnel } from "@/components/demos/scroll/CinematicTunnel";
 import { RisingImageCards } from "@/components/demos/scroll/RisingImageCards";
 import { StickyMediaSections } from "@/components/demos/scroll/StickyMediaSections";
@@ -29,13 +29,13 @@ export default function Page() {
       </p>
       <div className="flex flex-col gap-6">
         <DemoCard
-          id="scroll/DitheredScrollPortrait"
-          title="Dithered portrait develop"
-          description="A print coming up in the tray. The image is thresholded through an 8×8 Bayer matrix into ink cells, each holding its own scroll threshold, so the picture develops in grain instead of fading in."
+          id="scroll/DitheredScrollPhoto"
+          title="Dithered photo develop"
+          description="A print coming up in the tray. A JPEG is thresholded through an 8×8 Bayer matrix into ink cells, each holding its own scroll threshold, so the photo develops in grain instead of fading in."
           tags={["canvas", "Bayer dither", "useSpring", "devicePixelRatio"]}
           stageClassName="h-[620px]"
         >
-          <DitheredScrollPortrait />
+          <DitheredScrollPhoto />
         </DemoCard>
 
         <DemoCard

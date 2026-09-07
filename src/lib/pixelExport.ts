@@ -58,6 +58,12 @@ const RUNWAY = ${s.runway};
 /* Develop lag per frame: 0 snaps to the scrollbar, 1 never catches up. */
 const EASE = ${s.lag};
 
+/* Colour: each cell keeps the colour of the pixel it came from, instead of
+   everything being drawn in one ink. Cells are sorted by palette entry so
+   painting sets fillStyle once per colour, not once per cell. */
+const COLOUR = ${s.colour};
+const LEVELS = 8;
+
 const BAYER = ${BAYER_SRC};`;
 }
 
@@ -85,7 +91,11 @@ const IMAGE =
 
 ${constants(s)}
 
-type Cells = { x: Int16Array; y: Int16Array; t: Float32Array; n: number; cols: number; rows: number };
+type Cells = {
+  x: Int16Array; y: Int16Array; t: Float32Array;
+  n: number; cols: number; rows: number;
+  tone?: Uint16Array; palette?: string[];
+};
 
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 
@@ -114,6 +124,11 @@ function buildCells(image: HTMLImageElement): Cells {
 
   const xs: number[] = [];
   const ys: number[] = [];
+  const tones: number[] = [];
+  /* Packed quantised RGB -> palette index. */
+  const index = new Map<number, number>();
+  const palette: string[] = [];
+  const step = 255 / (LEVELS - 1);
   const ts: number[] = [];
   const span = Math.max(1, rows * FADE);
 
@@ -122,17 +137,58 @@ function buildCells(image: HTMLImageElement): Cells {
     for (let x = 0; x < cols; x++) {
       const i = (y * cols + x) * 4;
       const alpha = data[i + 3] / 255;
+      const threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+      if (COLOUR) {
+        /* Every cell survives; only the bottom fade thins them, and it does so
+           through the same Bayer matrix so the edge dissolves rather than cuts. */
+        if (alpha < 0.5 || bottom < threshold) continue;
+        const qr = Math.round(Math.round(data[i] / step) * step);
+        const qg = Math.round(Math.round(data[i + 1] / step) * step);
+        const qb = Math.round(Math.round(data[i + 2] / step) * step);
+        const packed = (qr << 16) | (qg << 8) | qb;
+        let tone = index.get(packed);
+        if (tone === undefined) {
+          tone = palette.length;
+          index.set(packed, tone);
+          palette.push("rgb(" + qr + "," + qg + "," + qb + ")");
+        }
+        xs.push(x);
+        ys.push(y);
+        tones.push(tone);
+        ts.push(clamp(hash(x, y) * SPREAD));
+        continue;
+      }
+
       let l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       l = l * alpha + 255 * (1 - alpha);
       if (INVERT) l = 255 - l;
       if (l < BG_CUT) continue;
 
       const value = Math.pow(clamp((l - BG_CUT) / (FIG_HI - BG_CUT)), GAMMA);
-      if ((1 - value) * WEIGHT * bottom > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+      if ((1 - value) * WEIGHT * bottom > threshold) {
+        tones.push(0);
         xs.push(x);
         ys.push(y);
         ts.push(clamp(hash(x, y) * SPREAD));
       }
+    }
+  }
+
+  /* Sort by palette entry so painting sets fillStyle once per colour instead
+     of once per cell. Squares do not overlap at rest, so reordering is
+     invisible. */
+  if (COLOUR) {
+    const order = xs.map((_, i) => i).sort((a, b) => tones[a] - tones[b]);
+    const ox = order.map((i) => xs[i]);
+    const oy = order.map((i) => ys[i]);
+    const ot = order.map((i) => tones[i]);
+    const od = order.map((i) => ts[i]);
+    for (let k = 0; k < order.length; k++) {
+      xs[k] = ox[k];
+      ys[k] = oy[k];
+      tones[k] = ot[k];
+      ts[k] = od[k];
     }
   }
 
@@ -143,6 +199,8 @@ function buildCells(image: HTMLImageElement): Cells {
     n: xs.length,
     cols,
     rows,
+    tone: COLOUR ? Uint16Array.from(tones) : undefined,
+    palette: COLOUR ? palette : undefined,
   };
 }
 
@@ -191,11 +249,19 @@ export default function ScrollDither() {
     function paint(p: number) {
       if (!cells || !ctx) return;
       ctx.clearRect(0, 0, cells.cols * cell, cells.rows * cell);
-      ctx.fillStyle = INK;
+      const tone = cells.tone;
+      const palette = cells.palette;
+      /* Cells are sorted by palette entry, so this only changes on a boundary. */
+      let last = -1;
+      if (!tone || !palette) ctx.fillStyle = INK;
       const r = cell / 2;
       const settled = p > 0.999;
 
       for (let i = 0; i < cells.n; i++) {
+        if (tone && palette && tone[i] !== last) {
+          last = tone[i];
+          ctx.fillStyle = palette[last];
+        }
         if (!settled) {
           const a = (p - cells.t[i]) / CELL_FADE;
           if (a <= 0) continue;
@@ -329,6 +395,9 @@ export function toHtml(image: string, s: ExportSettings) {
     var data = g.getImageData(0, 0, cols, rows).data;
 
     var xs = [], ys = [], ts = [];
+    var tones = [];
+    /* Packed quantised RGB -> palette index. */
+    var index = {}, palette = [], step = 255 / (LEVELS - 1);
     var span = Math.max(1, rows * FADE);
 
     for (var y = 0; y < rows; y++) {
@@ -336,21 +405,61 @@ export function toHtml(image: string, s: ExportSettings) {
       for (var x = 0; x < cols; x++) {
         var i = (y * cols + x) * 4;
         var alpha = data[i + 3] / 255;
+        var threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+        if (COLOUR) {
+          /* Every cell survives; only the bottom fade thins them, through the
+             same Bayer matrix so the edge dissolves rather than cuts. */
+          if (alpha < 0.5 || bottom < threshold) continue;
+          var qr = Math.round(Math.round(data[i] / step) * step);
+          var qg = Math.round(Math.round(data[i + 1] / step) * step);
+          var qb = Math.round(Math.round(data[i + 2] / step) * step);
+          var packed = (qr << 16) | (qg << 8) | qb;
+          var tone = index[packed];
+          if (tone === undefined) {
+            tone = palette.length;
+            index[packed] = tone;
+            palette.push("rgb(" + qr + "," + qg + "," + qb + ")");
+          }
+          xs.push(x); ys.push(y); tones.push(tone);
+          ts.push(clamp(hash(x, y) * SPREAD));
+          continue;
+        }
+
         var l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         l = l * alpha + 255 * (1 - alpha);
         if (INVERT) l = 255 - l;
         if (l < BG_CUT) continue;
 
         var value = Math.pow(clamp((l - BG_CUT) / (FIG_HI - BG_CUT)), GAMMA);
-        if ((1 - value) * WEIGHT * bottom > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+        if ((1 - value) * WEIGHT * bottom > threshold) {
+          tones.push(0);
           xs.push(x); ys.push(y); ts.push(clamp(hash(x, y) * SPREAD));
         }
       }
     }
 
+    /* Sort by palette entry so painting sets fillStyle once per colour instead
+       of once per cell. Squares do not overlap at rest, so reordering is
+       invisible. */
+    if (COLOUR) {
+      var order = xs.map(function (_, i) { return i; })
+                    .sort(function (a, b) { return tones[a] - tones[b]; });
+      var ox = order.map(function (i) { return xs[i]; });
+      var oy = order.map(function (i) { return ys[i]; });
+      var ot = order.map(function (i) { return tones[i]; });
+      var od = order.map(function (i) { return ts[i]; });
+      for (var q = 0; q < order.length; q++) {
+        xs[q] = ox[q]; ys[q] = oy[q]; tones[q] = ot[q];
+        ts[q] = od[q];
+      }
+    }
+
     return {
       x: Int16Array.from(xs), y: Int16Array.from(ys), t: Float32Array.from(ts),
-      n: xs.length, cols: cols, rows: rows
+      n: xs.length, cols: cols, rows: rows,
+      tone: COLOUR ? Uint16Array.from(tones) : undefined,
+      palette: COLOUR ? palette : undefined
     };
   }
 
@@ -379,10 +488,16 @@ export function toHtml(image: string, s: ExportSettings) {
   function paint(p) {
     if (!cells) return;
     ctx.clearRect(0, 0, cells.cols * cell, cells.rows * cell);
-    ctx.fillStyle = INK;
+    var tone = cells.tone, palette = cells.palette;
+    /* Cells are sorted by palette entry, so this only changes on a boundary. */
+    var last = -1;
+    if (!tone || !palette) ctx.fillStyle = INK;
     var r = cell / 2, settled = p > 0.999, i, a, px, py;
 
     for (i = 0; i < cells.n; i++) {
+      if (tone && palette && tone[i] !== last) {
+        last = tone[i]; ctx.fillStyle = palette[last];
+      }
       if (!settled) {
         a = (p - cells.t[i]) / CELL_FADE;
         if (a <= 0) continue;
@@ -444,6 +559,12 @@ const EASE = ${s.ease};
 const THIN = ${s.thin};
 const FILL = ${s.fill};
 
+/* Colour: each cell keeps the colour of the pixel it came from, instead of
+   everything being drawn in one ink. Cells are sorted by palette entry so
+   painting sets fillStyle once per colour, not once per cell. */
+const COLOUR = ${s.colour};
+const LEVELS = 8;
+
 const BAYER = ${BAYER_SRC};`;
 }
 
@@ -484,6 +605,7 @@ type Field = {
   dx: Float32Array; dy: Float32Array;
   seed: Float32Array;
   n: number; cols: number; rows: number;
+  tone?: Uint16Array; palette?: string[];
 };
 
 /* Dither the image down to the cells that will become particles. */
@@ -501,6 +623,11 @@ function buildField(image: HTMLImageElement): Field {
 
   const xs: number[] = [];
   const ys: number[] = [];
+  const tones: number[] = [];
+  /* Packed quantised RGB -> palette index. */
+  const index = new Map<number, number>();
+  const palette: string[] = [];
+  const step = 255 / (LEVELS - 1);
   const span = Math.max(1, rows * FADE);
 
   for (let y = 0; y < rows; y++) {
@@ -508,16 +635,54 @@ function buildField(image: HTMLImageElement): Field {
     for (let x = 0; x < cols; x++) {
       const i = (y * cols + x) * 4;
       const alpha = data[i + 3] / 255;
+      const threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+      if (COLOUR) {
+        /* Every cell survives; only the bottom fade thins them, and it does so
+           through the same Bayer matrix so the edge dissolves rather than cuts. */
+        if (alpha < 0.5 || bottom < threshold) continue;
+        const qr = Math.round(Math.round(data[i] / step) * step);
+        const qg = Math.round(Math.round(data[i + 1] / step) * step);
+        const qb = Math.round(Math.round(data[i + 2] / step) * step);
+        const packed = (qr << 16) | (qg << 8) | qb;
+        let tone = index.get(packed);
+        if (tone === undefined) {
+          tone = palette.length;
+          index.set(packed, tone);
+          palette.push("rgb(" + qr + "," + qg + "," + qb + ")");
+        }
+        xs.push(x);
+        ys.push(y);
+        tones.push(tone);
+        continue;
+      }
+
       let l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       l = l * alpha + 255 * (1 - alpha);
       if (INVERT) l = 255 - l;
       if (l < BG_CUT) continue;
 
       const value = Math.pow(clamp((l - BG_CUT) / (FIG_HI - BG_CUT)), GAMMA);
-      if ((1 - value) * WEIGHT * bottom > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+      if ((1 - value) * WEIGHT * bottom > threshold) {
+        tones.push(0);
         xs.push(x);
         ys.push(y);
       }
+    }
+  }
+
+  /* Sort by palette entry so painting sets fillStyle once per colour instead
+     of once per cell. Squares do not overlap at rest, so reordering is
+     invisible. */
+  if (COLOUR) {
+    const order = xs.map((_, i) => i).sort((a, b) => tones[a] - tones[b]);
+    const ox = order.map((i) => xs[i]);
+    const oy = order.map((i) => ys[i]);
+    const ot = order.map((i) => tones[i]);
+    for (let k = 0; k < order.length; k++) {
+      xs[k] = ox[k];
+      ys[k] = oy[k];
+      tones[k] = ot[k];
     }
   }
 
@@ -529,6 +694,8 @@ function buildField(image: HTMLImageElement): Field {
     gx: Int16Array.from(xs), gy: Int16Array.from(ys),
     dx: new Float32Array(n), dy: new Float32Array(n),
     seed, n, cols, rows,
+    tone: COLOUR ? Uint16Array.from(tones) : undefined,
+    palette: COLOUR ? palette : undefined,
   };
 }
 
@@ -583,10 +750,19 @@ export default function PixelScatter() {
       const half = cell * 0.5;
 
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = INK;
+      const tone = field.tone;
+      const palette = field.palette;
+      /* Cells are sorted by palette entry, so this only changes on a boundary. */
+      let last = -1;
+      if (!tone || !palette) ctx.fillStyle = INK;
       let moving = false;
 
       for (let i = 0; i < field.n; i++) {
+        if (tone && palette && tone[i] !== last) {
+          last = tone[i];
+          ctx.fillStyle = palette[last];
+        }
+
         const homeX = originX + field.gx[i] * cell + half;
         const homeY = originY + field.gy[i] * cell + half;
         const vx = homeX - curX, vy = homeY - curY;
@@ -724,20 +900,59 @@ export function toHtmlScatter(image: string, s: ExportSettings) {
     g.drawImage(image, 0, 0, cols, rows);
     var data = g.getImageData(0, 0, cols, rows).data;
 
-    var xs = [], ys = [], span = Math.max(1, rows * FADE);
+    var xs = [], ys = [];
+    var tones = [];
+    /* Packed quantised RGB -> palette index. */
+    var index = {}, palette = [], step = 255 / (LEVELS - 1);
+    var span = Math.max(1, rows * FADE);
     for (var y = 0; y < rows; y++) {
       var bottom = FADE > 0 ? smoothstep((rows - y) / span) : 1;
       for (var x = 0; x < cols; x++) {
         var i = (y * cols + x) * 4;
         var alpha = data[i + 3] / 255;
+        var threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+        if (COLOUR) {
+          /* Every cell survives; only the bottom fade thins them, through the
+             same Bayer matrix so the edge dissolves rather than cuts. */
+          if (alpha < 0.5 || bottom < threshold) continue;
+          var qr = Math.round(Math.round(data[i] / step) * step);
+          var qg = Math.round(Math.round(data[i + 1] / step) * step);
+          var qb = Math.round(Math.round(data[i + 2] / step) * step);
+          var packed = (qr << 16) | (qg << 8) | qb;
+          var tone = index[packed];
+          if (tone === undefined) {
+            tone = palette.length;
+            index[packed] = tone;
+            palette.push("rgb(" + qr + "," + qg + "," + qb + ")");
+          }
+          xs.push(x); ys.push(y); tones.push(tone);
+          continue;
+        }
+
         var l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         l = l * alpha + 255 * (1 - alpha);
         if (INVERT) l = 255 - l;
         if (l < BG_CUT) continue;
         var value = Math.pow(clamp((l - BG_CUT) / (FIG_HI - BG_CUT)), GAMMA);
-        if ((1 - value) * WEIGHT * bottom > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+        if ((1 - value) * WEIGHT * bottom > threshold) {
+          tones.push(0);
           xs.push(x); ys.push(y);
         }
+      }
+    }
+
+    /* Sort by palette entry so painting sets fillStyle once per colour instead
+       of once per cell. Squares do not overlap at rest, so reordering is
+       invisible. */
+    if (COLOUR) {
+      var order = xs.map(function (_, i) { return i; })
+                    .sort(function (a, b) { return tones[a] - tones[b]; });
+      var ox = order.map(function (i) { return xs[i]; });
+      var oy = order.map(function (i) { return ys[i]; });
+      var ot = order.map(function (i) { return tones[i]; });
+      for (var q = 0; q < order.length; q++) {
+        xs[q] = ox[q]; ys[q] = oy[q]; tones[q] = ot[q];
       }
     }
 
@@ -746,7 +961,9 @@ export function toHtmlScatter(image: string, s: ExportSettings) {
     return {
       gx: Int16Array.from(xs), gy: Int16Array.from(ys),
       dx: new Float32Array(n), dy: new Float32Array(n),
-      seed: seed, n: n, cols: cols, rows: rows
+      seed: seed, n: n, cols: cols, rows: rows,
+      tone: COLOUR ? Uint16Array.from(tones) : undefined,
+      palette: COLOUR ? palette : undefined
     };
   }
 
@@ -774,9 +991,16 @@ export function toHtmlScatter(image: string, s: ExportSettings) {
     var half = cell * 0.5, moving = false, i;
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = INK;
+    var tone = field.tone, palette = field.palette;
+    /* Cells are sorted by palette entry, so this only changes on a boundary. */
+    var last = -1;
+    if (!tone || !palette) ctx.fillStyle = INK;
 
     for (i = 0; i < field.n; i++) {
+      if (tone && palette && tone[i] !== last) {
+        last = tone[i]; ctx.fillStyle = palette[last];
+      }
+
       var homeX = originX + field.gx[i] * cell + half;
       var homeY = originY + field.gy[i] * cell + half;
       var vx = homeX - curX, vy = homeY - curY;
@@ -866,6 +1090,12 @@ const DURATION = ${s.duration};
 /* Square size within its cell, leaving the pixel gap. */
 const FILL = ${s.fill};
 
+/* Colour: each cell keeps the colour of the pixel it came from, instead of
+   everything being drawn in one ink. Cells are sorted by palette entry so
+   painting sets fillStyle once per colour, not once per cell. */
+const COLOUR = ${s.colour};
+const LEVELS = 8;
+
 const BAYER = ${BAYER_SRC};`;
 }
 
@@ -905,6 +1135,7 @@ type Assembly = {
   sx: Float32Array; sy: Float32Array;
   delay: Float32Array; seed: Float32Array;
   n: number; cols: number; rows: number;
+  tone?: Uint16Array; palette?: string[];
 };
 
 /* Dither the image, then decide where each cell starts from. */
@@ -922,6 +1153,11 @@ function buildAssembly(image: HTMLImageElement): Assembly {
 
   const xs: number[] = [];
   const ys: number[] = [];
+  const tones: number[] = [];
+  /* Packed quantised RGB -> palette index. */
+  const index = new Map<number, number>();
+  const palette: string[] = [];
+  const step = 255 / (LEVELS - 1);
   const span = Math.max(1, rows * FADE);
 
   for (let y = 0; y < rows; y++) {
@@ -929,16 +1165,54 @@ function buildAssembly(image: HTMLImageElement): Assembly {
     for (let x = 0; x < cols; x++) {
       const i = (y * cols + x) * 4;
       const alpha = data[i + 3] / 255;
+      const threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+      if (COLOUR) {
+        /* Every cell survives; only the bottom fade thins them, and it does so
+           through the same Bayer matrix so the edge dissolves rather than cuts. */
+        if (alpha < 0.5 || bottom < threshold) continue;
+        const qr = Math.round(Math.round(data[i] / step) * step);
+        const qg = Math.round(Math.round(data[i + 1] / step) * step);
+        const qb = Math.round(Math.round(data[i + 2] / step) * step);
+        const packed = (qr << 16) | (qg << 8) | qb;
+        let tone = index.get(packed);
+        if (tone === undefined) {
+          tone = palette.length;
+          index.set(packed, tone);
+          palette.push("rgb(" + qr + "," + qg + "," + qb + ")");
+        }
+        xs.push(x);
+        ys.push(y);
+        tones.push(tone);
+        continue;
+      }
+
       let l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       l = l * alpha + 255 * (1 - alpha);
       if (INVERT) l = 255 - l;
       if (l < BG_CUT) continue;
 
       const value = Math.pow(clamp((l - BG_CUT) / (FIG_HI - BG_CUT)), GAMMA);
-      if ((1 - value) * WEIGHT * bottom > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+      if ((1 - value) * WEIGHT * bottom > threshold) {
+        tones.push(0);
         xs.push(x);
         ys.push(y);
       }
+    }
+  }
+
+  /* Sort by palette entry so painting sets fillStyle once per colour instead
+     of once per cell. Squares do not overlap at rest, so reordering is
+     invisible. */
+  if (COLOUR) {
+    const order = xs.map((_, i) => i).sort((a, b) => tones[a] - tones[b]);
+    const ox = order.map((i) => xs[i]);
+    const oy = order.map((i) => ys[i]);
+    const ot = order.map((i) => tones[i]);
+    for (let k = 0; k < order.length; k++) {
+      xs[k] = ox[k];
+      ys[k] = oy[k];
+      tones[k] = ot[k];
     }
   }
 
@@ -968,6 +1242,8 @@ function buildAssembly(image: HTMLImageElement): Assembly {
   return {
     gx: Int16Array.from(xs), gy: Int16Array.from(ys),
     sx, sy, delay, seed, n, cols, rows,
+    tone: COLOUR ? Uint16Array.from(tones) : undefined,
+    palette: COLOUR ? palette : undefined,
   };
 }
 
@@ -1017,10 +1293,18 @@ export default function PixelAssemble() {
       const turb = TURBULENCE * span;
 
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = INK;
+      const tone = a.tone;
+      const palette = a.palette;
+      /* Cells are sorted by palette entry, so this only changes on a boundary. */
+      let last = -1;
+      if (!tone || !palette) ctx.fillStyle = INK;
 
       if (calm || progress >= 1) {
         for (let i = 0; i < a.n; i++) {
+          if (tone && palette && tone[i] !== last) {
+            last = tone[i];
+            ctx.fillStyle = palette[last];
+          }
           ctx.fillRect(
             originX + a.gx[i] * cell + half - base * 0.5,
             originY + a.gy[i] * cell + half - base * 0.5,
@@ -1048,6 +1332,10 @@ export default function PixelAssemble() {
         const jx = wob * Math.sin(time * 1.7 + phase * 2.3);
         const jy = wob * Math.cos(time * 1.4 + phase * 1.9);
 
+        if (tone && palette && tone[i] !== last) {
+          last = tone[i];
+          ctx.fillStyle = palette[last];
+        }
         ctx.globalAlpha = local < 1 ? local : 1;
         const s = base * (0.55 + 0.45 * e);
         ctx.fillRect(
@@ -1153,20 +1441,59 @@ export function toHtmlAssemble(image: string, s: ExportSettings) {
     g.drawImage(image, 0, 0, cols, rows);
     var data = g.getImageData(0, 0, cols, rows).data;
 
-    var xs = [], ys = [], span = Math.max(1, rows * FADE), x, y;
+    var xs = [], ys = [], x, y;
+    var tones = [];
+    /* Packed quantised RGB -> palette index. */
+    var index = {}, palette = [], step = 255 / (LEVELS - 1);
+    var span = Math.max(1, rows * FADE);
     for (y = 0; y < rows; y++) {
       var bottom = FADE > 0 ? smoothstep((rows - y) / span) : 1;
       for (x = 0; x < cols; x++) {
         var i = (y * cols + x) * 4;
         var alpha = data[i + 3] / 255;
+        var threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+        if (COLOUR) {
+          /* Every cell survives; only the bottom fade thins them, through the
+             same Bayer matrix so the edge dissolves rather than cuts. */
+          if (alpha < 0.5 || bottom < threshold) continue;
+          var qr = Math.round(Math.round(data[i] / step) * step);
+          var qg = Math.round(Math.round(data[i + 1] / step) * step);
+          var qb = Math.round(Math.round(data[i + 2] / step) * step);
+          var packed = (qr << 16) | (qg << 8) | qb;
+          var tone = index[packed];
+          if (tone === undefined) {
+            tone = palette.length;
+            index[packed] = tone;
+            palette.push("rgb(" + qr + "," + qg + "," + qb + ")");
+          }
+          xs.push(x); ys.push(y); tones.push(tone);
+          continue;
+        }
+
         var l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         l = l * alpha + 255 * (1 - alpha);
         if (INVERT) l = 255 - l;
         if (l < BG_CUT) continue;
         var value = Math.pow(clamp((l - BG_CUT) / (FIG_HI - BG_CUT)), GAMMA);
-        if ((1 - value) * WEIGHT * bottom > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+        if ((1 - value) * WEIGHT * bottom > threshold) {
+          tones.push(0);
           xs.push(x); ys.push(y);
         }
+      }
+    }
+
+    /* Sort by palette entry so painting sets fillStyle once per colour instead
+       of once per cell. Squares do not overlap at rest, so reordering is
+       invisible. */
+    if (COLOUR) {
+      var order = xs.map(function (_, i) { return i; })
+                    .sort(function (a, b) { return tones[a] - tones[b]; });
+      var ox = order.map(function (i) { return xs[i]; });
+      var oy = order.map(function (i) { return ys[i]; });
+      var ot = order.map(function (i) { return tones[i]; });
+      for (var q = 0; q < order.length; q++) {
+        xs[q] = ox[q]; ys[q] = oy[q]; tones[q] = ot[q];
       }
     }
 
@@ -1192,7 +1519,9 @@ export function toHtmlAssemble(image: string, s: ExportSettings) {
     return {
       gx: Int16Array.from(xs), gy: Int16Array.from(ys),
       sx: sx, sy: sy, delay: delay, seed: seed,
-      n: n, cols: cols, rows: rows
+      n: n, cols: cols, rows: rows,
+      tone: COLOUR ? Uint16Array.from(tones) : undefined,
+      palette: COLOUR ? palette : undefined
     };
   }
 
@@ -1218,10 +1547,16 @@ export function toHtmlAssemble(image: string, s: ExportSettings) {
     var win = Math.max(0.0001, 1 - STAGGER), turb = TURBULENCE * span, i;
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = INK;
+    var tone = a.tone, palette = a.palette;
+    /* Cells are sorted by palette entry, so this only changes on a boundary. */
+    var last = -1;
+    if (!tone || !palette) ctx.fillStyle = INK;
 
     if (calm || progress >= 1) {
       for (i = 0; i < a.n; i++) {
+        if (tone && palette && tone[i] !== last) {
+          last = tone[i]; ctx.fillStyle = palette[last];
+        }
         ctx.fillRect(
           originX + a.gx[i] * cell + half - base * 0.5,
           originY + a.gy[i] * cell + half - base * 0.5, base, base);
@@ -1241,6 +1576,9 @@ export function toHtmlAssemble(image: string, s: ExportSettings) {
       var jx = wob * Math.sin(time * 1.7 + phase * 2.3);
       var jy = wob * Math.cos(time * 1.4 + phase * 1.9);
 
+      if (tone && palette && tone[i] !== last) {
+        last = tone[i]; ctx.fillStyle = palette[last];
+      }
       ctx.globalAlpha = local < 1 ? local : 1;
       var sz = base * (0.55 + 0.45 * e);
       ctx.fillRect(

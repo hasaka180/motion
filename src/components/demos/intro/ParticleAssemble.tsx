@@ -8,12 +8,13 @@ import {
   paintAssembly,
   type Assembly,
 } from "@/lib/assembleField";
-import { SRC_H, SRC_W, drawPortrait } from "@/components/demos/shared/portrait";
+import { loadPhoto } from "@/components/demos/shared/photo";
 
 /**
  * A picture forming out of dust.
  *
- * The image is dithered to a grid of ink cells (lib/dither), then every cell is
+ * A real JPEG is decoded from public/ and dithered to a grid of ink cells
+ * (lib/dither), then every cell is
  * thrown out from the centre, turned transparent and shrunk. Over the run each
  * one spirals home, fades up and grows, with a turbulence that dies as it
  * lands. Departures are staggered, so the picture resolves out of noise rather
@@ -25,7 +26,7 @@ import { SRC_H, SRC_W, drawPortrait } from "@/components/demos/shared/portrait";
 const INK = "#f4f4f7";
 const GROUND = "#08080b";
 
-const OPTIONS = { ...DEFAULTS, gridW: 120, fade: 0.18 };
+const OPTIONS = { ...DEFAULTS, gridW: 120, fade: 0.18, colour: true };
 const MOTION = ASSEMBLE_DEFAULTS;
 /** Square size within its cell, leaving the pixel gap. */
 const FILL = 0.86;
@@ -42,16 +43,15 @@ export function ParticleAssemble() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Dither the source once, then lay out where each cell starts from.
-    const src = document.createElement("canvas");
-    src.width = SRC_W;
-    src.height = SRC_H;
-    drawPortrait(src.getContext("2d")!);
-    const { data, cols, rows } = sampleToGrid(src, SRC_W, SRC_H, OPTIONS.gridW);
-    const cells: Cells = buildCells(data, cols, rows, OPTIONS);
-    const assembly: Assembly = createAssembly(cells, MOTION);
-
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Filled in once the photograph decodes.
+    let assembly: Assembly | null = null;
+    let cols = 1;
+    let rows = 1;
+    let cancelled = false;
+    let io: IntersectionObserver | null = null;
+    let ro: ResizeObserver | null = null;
 
     let W = 0;
     let H = 0;
@@ -80,6 +80,7 @@ export function ParticleAssemble() {
     };
 
     const draw = (progress: number, time: number) => {
+      if (!assembly) return;
       paintAssembly(ctx, assembly, {
         width: W,
         height: H,
@@ -97,7 +98,7 @@ export function ParticleAssemble() {
 
     const loop = () => {
       frame = requestAnimationFrame(loop);
-      if (!W || !startedAt) return;
+      if (!W || !startedAt || !assembly) return;
       // Once it has landed there is nothing left to animate.
       if (done) return;
 
@@ -107,28 +108,43 @@ export function ParticleAssemble() {
       if (progress >= 1) done = true;
     };
 
-    layout();
-    draw(0, 0);
     frame = requestAnimationFrame(loop);
 
-    // Hold the dust until the stage is actually on screen.
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !startedAt) {
-          startedAt = performance.now();
-        }
-      },
-      { threshold: 0.25 }
-    );
-    io.observe(stage);
+    // Nothing to dither until the photograph has actually decoded.
+    loadPhoto().then((photo) => {
+      if (cancelled) return;
+      const sampled = sampleToGrid(
+        photo,
+        photo.naturalWidth,
+        photo.naturalHeight,
+        OPTIONS.gridW
+      );
+      cols = sampled.cols;
+      rows = sampled.rows;
+      const cells: Cells = buildCells(sampled.data, cols, rows, OPTIONS);
+      assembly = createAssembly(cells, MOTION);
 
-    const ro = new ResizeObserver(layout);
-    ro.observe(stage);
+      layout();
+      draw(0, 0);
+
+      // Hold the dust until the stage is actually on screen.
+      io = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && !startedAt) startedAt = performance.now();
+        },
+        { threshold: 0.25 }
+      );
+      io.observe(stage);
+
+      ro = new ResizeObserver(layout);
+      ro.observe(stage);
+    });
 
     return () => {
       cancelAnimationFrame(frame);
-      io.disconnect();
-      ro.disconnect();
+      cancelled = true;
+      io?.disconnect();
+      ro?.disconnect();
     };
   }, [run]);
 

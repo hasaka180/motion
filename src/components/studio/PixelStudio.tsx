@@ -296,8 +296,19 @@ export function PixelStudio() {
       figHi: set.figHi,
       spread: set.spread,
       invert: set.invert,
+      colour: set.colour,
     }),
-    [set.gridW, set.weight, set.gamma, set.fade, set.bgCut, set.figHi, set.spread, set.invert]
+    [
+      set.gridW,
+      set.weight,
+      set.gamma,
+      set.fade,
+      set.bgCut,
+      set.figHi,
+      set.spread,
+      set.invert,
+      set.colour,
+    ]
   );
 
   // The cell list is a pure function of the image and the dither options.
@@ -657,11 +668,20 @@ export function PixelStudio() {
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <Swatch label="Ink" value={set.ink} onChange={(ink) => patch({ ink })} />
+            {!set.colour && (
+              <Swatch label="Ink" value={set.ink} onChange={(ink) => patch({ ink })} />
+            )}
             <Swatch label="Paper" value={set.ground} onChange={(ground) => patch({ ground })} />
           </div>
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2.5">
-            <Check label="Invert" checked={set.invert} onChange={(invert) => patch({ invert })} />
+            <Check
+              label="Keep the photo's colour"
+              checked={set.colour}
+              onChange={(colour) => patch({ colour })}
+            />
+            {!set.colour && (
+              <Check label="Invert" checked={set.invert} onChange={(invert) => patch({ invert })} />
+            )}
             {mode === "scroll" && (
               <Check label="Round dots" checked={set.round} onChange={(round) => patch({ round })} />
             )}

@@ -14,7 +14,7 @@ import {
   sampleToGrid,
   type Cells,
 } from "@/lib/dither";
-import { SRC_H, SRC_W, drawPortrait } from "@/components/demos/shared/portrait";
+import { loadPhoto } from "@/components/demos/shared/photo";
 
 /**
  * A print that develops as you scroll.
@@ -24,17 +24,17 @@ import { SRC_H, SRC_W, drawPortrait } from "@/components/demos/shared/portrait";
  * progress sweeps past them so the picture comes up in grain rather than in a
  * wipe. This component is only the wiring: a source, a canvas, and a scroll.
  *
- * The source is drawn procedurally (see shared/portrait) so the repo carries
- * no bitmaps. To develop your own photograph instead — and to get the code for
- * it — use the studio at /studio.
+ * The source is a real JPEG, decoded from public/ and sampled exactly the way
+ * the studio samples an upload. To develop your own photograph, swap that file
+ * — or use the studio at /studio, which does it and hands back the code.
  */
 
 const INK = "#12222a";
-const GROUND = "#f1efe9";
+const GROUND = "#0c0c11";
 
-const OPTIONS = { ...DEFAULTS, gridW: 140 };
+const OPTIONS = { ...DEFAULTS, gridW: 140, colour: true };
 
-export function DitheredScrollPortrait() {
+export function DitheredScrollPhoto() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -62,13 +62,8 @@ export function DitheredScrollPortrait() {
 
     ctxRef.current = cv.getContext("2d");
 
-    const src = document.createElement("canvas");
-    src.width = SRC_W;
-    src.height = SRC_H;
-    drawPortrait(src.getContext("2d")!);
-
-    const { data, cols, rows } = sampleToGrid(src, SRC_W, SRC_H, OPTIONS.gridW);
-    cellsRef.current = buildCells(data, cols, rows, OPTIONS);
+    let cancelled = false;
+    let observer: ResizeObserver | null = null;
 
     const layout = () => {
       const ctx = ctxRef.current;
@@ -92,10 +87,25 @@ export function DitheredScrollPortrait() {
       paint(progressRef.current);
     };
 
-    layout();
-    const observer = new ResizeObserver(layout);
-    observer.observe(stage);
-    return () => observer.disconnect();
+    // Nothing to sample until the photograph has actually decoded.
+    loadPhoto().then((photo) => {
+      if (cancelled) return;
+      const { data, cols, rows } = sampleToGrid(
+        photo,
+        photo.naturalWidth,
+        photo.naturalHeight,
+        OPTIONS.gridW
+      );
+      cellsRef.current = buildCells(data, cols, rows, OPTIONS);
+      layout();
+      observer = new ResizeObserver(layout);
+      observer.observe(stage);
+    });
+
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+    };
   }, [paint]);
 
   const { scrollYProgress } = useScroll({ container: scrollRef });

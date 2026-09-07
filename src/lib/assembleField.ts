@@ -52,6 +52,10 @@ export type Assembly = {
   n: number;
   cols: number;
   rows: number;
+  /** Palette entry per particle. Absent when the picture is a single ink. */
+  tone?: Uint16Array;
+  /** CSS colours, indexed by `tone`. */
+  palette?: string[];
 };
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -62,7 +66,15 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
  * reassembles exactly the same way.
  */
 export function createAssembly(
-  source: { x: Int16Array; y: Int16Array; n: number; cols: number; rows: number },
+  source: {
+    x: Int16Array;
+    y: Int16Array;
+    n: number;
+    cols: number;
+    rows: number;
+    tone?: Uint16Array;
+    palette?: string[];
+  },
   p: AssembleParams
 ): Assembly {
   const n = source.n;
@@ -94,7 +106,19 @@ export function createAssembly(
     delay[i] = (Math.random() * (1 - p.order) + radial * p.order) * p.stagger;
   }
 
-  return { gx: source.x, gy: source.y, sx, sy, delay, seed, n, cols: source.cols, rows: source.rows };
+  return {
+    gx: source.x,
+    gy: source.y,
+    sx,
+    sy,
+    delay,
+    seed,
+    n,
+    cols: source.cols,
+    rows: source.rows,
+    tone: source.tone,
+    palette: source.palette,
+  };
 }
 
 export type AssembleOptions = {
@@ -131,10 +155,17 @@ export function paintAssembly(
   const turb = p.turbulence * span;
 
   ctx.clearRect(0, 0, o.width, o.height);
-  ctx.fillStyle = o.ink;
+  const { tone, palette } = a;
+  // Particles are sorted by palette entry, so this only changes on a boundary.
+  let last = -1;
+  if (!tone || !palette) ctx.fillStyle = o.ink;
 
   if (o.calm || o.progress >= 1) {
     for (let i = 0; i < a.n; i++) {
+      if (tone && palette && tone[i] !== last) {
+        last = tone[i];
+        ctx.fillStyle = palette[last];
+      }
       ctx.fillRect(
         o.originX + a.gx[i] * cell + half - base * 0.5,
         o.originY + a.gy[i] * cell + half - base * 0.5,
@@ -165,6 +196,10 @@ export function paintAssembly(
     const jx = wob * Math.sin(o.time * 1.7 + phase * 2.3);
     const jy = wob * Math.cos(o.time * 1.4 + phase * 1.9);
 
+    if (tone && palette && tone[i] !== last) {
+      last = tone[i];
+      ctx.fillStyle = palette[last];
+    }
     // Fade and grow on the way in — dust arriving, not tiles dropping.
     ctx.globalAlpha = local < 1 ? local : 1;
     const s = base * (0.55 + 0.45 * e);

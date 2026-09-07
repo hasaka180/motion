@@ -54,7 +54,22 @@ export type DitherOptions = {
   spread: number;
   /** Ink the highlights instead of the shadows. */
   invert: boolean;
+  /**
+   * Keep each cell's own colour instead of reducing to one ink. The Bayer
+   * threshold is skipped — with colour you want the picture, not a 1-bit
+   * rendering of it — so every cell survives except where the bottom fade
+   * thins it out.
+   */
+  colour: boolean;
 };
+
+/**
+ * Levels per channel when cells carry colour. Cells are sorted by palette
+ * entry so painting sets fillStyle once per colour rather than once per cell,
+ * which is the difference between a smooth frame and a stalled one; the
+ * palette has to stay small for that to pay off.
+ */
+const LEVELS = 8;
 
 export const DEFAULTS: DitherOptions = {
   gridW: 140,
@@ -65,6 +80,7 @@ export const DEFAULTS: DitherOptions = {
   figHi: 140,
   spread: 0.62,
   invert: false,
+  colour: true,
 };
 
 export type Cells = {
@@ -75,6 +91,10 @@ export type Cells = {
   n: number;
   cols: number;
   rows: number;
+  /** Palette entry per cell. Absent when the cells are a single ink. */
+  tone?: Uint16Array;
+  /** CSS colours, indexed by `tone`. Absent when the cells are a single ink. */
+  palette?: string[];
 };
 
 /**
@@ -115,23 +135,54 @@ export function buildCells(
   const xs: number[] = [];
   const ys: number[] = [];
   const ts: number[] = [];
+  const tones: number[] = [];
+  /** Packed quantised RGB -> palette index. */
+  const index = new Map<number, number>();
+  const palette: string[] = [];
   const span = Math.max(1, rows * o.fade);
+  const step = 255 / (LEVELS - 1);
 
   for (let y = 0; y < rows; y++) {
-    // Bottom rows lose density, so the print dissolves into the paper.
+    // Bottom rows lose density, so the picture dissolves into the ground.
     const bottom = o.fade > 0 ? smoothstep((rows - y) / span) : 1;
     for (let x = 0; x < cols; x++) {
       const i = (y * cols + x) * 4;
+      const alpha = data[i + 3] / 255;
+      const threshold = (BAYER[y & 7][x & 7] + 0.5) / 64;
+
+      if (o.colour) {
+        // Every cell survives; only the bottom fade thins them, and it does so
+        // through the same Bayer matrix so the edge dissolves rather than cuts.
+        if (alpha < 0.5) continue;
+        if (bottom < threshold) continue;
+
+        const r = Math.round(Math.round(data[i] / step) * step);
+        const g = Math.round(Math.round(data[i + 1] / step) * step);
+        const b = Math.round(Math.round(data[i + 2] / step) * step);
+        const packed = (r << 16) | (g << 8) | b;
+        let tone = index.get(packed);
+        if (tone === undefined) {
+          tone = palette.length;
+          index.set(packed, tone);
+          palette.push(`rgb(${r},${g},${b})`);
+        }
+
+        xs.push(x);
+        ys.push(y);
+        ts.push(clamp(hash(x, y) * o.spread));
+        tones.push(tone);
+        continue;
+      }
+
       let l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       // Transparent pixels composite onto paper, not onto black.
-      const alpha = data[i + 3] / 255;
       l = l * alpha + 255 * (1 - alpha);
       if (o.invert) l = 255 - l;
       if (l < o.bgCut) continue;
 
       const value = Math.pow(clamp((l - o.bgCut) / (o.figHi - o.bgCut)), o.gamma);
       const density = (1 - value) * o.weight * bottom;
-      if (density > (BAYER[y & 7][x & 7] + 0.5) / 64) {
+      if (density > threshold) {
         xs.push(x);
         ys.push(y);
         ts.push(clamp(hash(x, y) * o.spread));
@@ -139,14 +190,39 @@ export function buildCells(
     }
   }
 
-  return {
-    x: Int16Array.from(xs),
-    y: Int16Array.from(ys),
-    t: Float32Array.from(ts),
-    n: xs.length,
-    cols,
-    rows,
-  };
+  const n = xs.length;
+
+  if (!o.colour) {
+    return {
+      x: Int16Array.from(xs),
+      y: Int16Array.from(ys),
+      t: Float32Array.from(ts),
+      n,
+      cols,
+      rows,
+    };
+  }
+
+  // Sort by palette entry, so painting can set fillStyle once per colour
+  // instead of once per cell. Squares do not overlap at rest, so reordering
+  // the draw is invisible.
+  const order = Array.from({ length: n }, (_, i) => i).sort(
+    (a, b) => tones[a] - tones[b]
+  );
+
+  const x = new Int16Array(n);
+  const y = new Int16Array(n);
+  const tArr = new Float32Array(n);
+  const tone = new Uint16Array(n);
+  for (let k = 0; k < n; k++) {
+    const i = order[k];
+    x[k] = xs[i];
+    y[k] = ys[i];
+    tArr[k] = ts[i];
+    tone[k] = tones[i];
+  }
+
+  return { x, y, t: tArr, n, cols, rows, tone, palette };
 }
 
 /** How wide a single cell's fade-in is, in progress units. */
@@ -162,12 +238,19 @@ export function paintCells(
   round = false
 ) {
   ctx.clearRect(0, 0, cells.cols * cell, cells.rows * cell);
-  ctx.fillStyle = ink;
+  const { tone, palette } = cells;
+  // Cells are sorted by palette entry, so this only changes on a boundary.
+  let last = -1;
+  if (!tone || !palette) ctx.fillStyle = ink;
   const r = cell / 2;
 
   // Once everything has developed there is no alpha left to vary, so skip it.
   if (progress > 0.999) {
     for (let i = 0; i < cells.n; i++) {
+      if (tone && palette && tone[i] !== last) {
+        last = tone[i];
+        ctx.fillStyle = palette[last];
+      }
       const px = cells.x[i] * cell;
       const py = cells.y[i] * cell;
       if (round) {
@@ -184,6 +267,10 @@ export function paintCells(
   for (let i = 0; i < cells.n; i++) {
     const a = (progress - cells.t[i]) / CELL_FADE;
     if (a <= 0) continue;
+    if (tone && palette && tone[i] !== last) {
+      last = tone[i];
+      ctx.fillStyle = palette[last];
+    }
     ctx.globalAlpha = a < 1 ? a : 1;
     const px = cells.x[i] * cell;
     const py = cells.y[i] * cell;

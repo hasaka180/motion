@@ -8,7 +8,8 @@ page, hit **Replay**, then copy whichever one you need.
 Most demos are a single self-contained file. The pixel demos are the exception:
 they share their maths with the studio and with the code it generates, so it
 only exists once — see `src/lib/dither.ts`, `particleField.ts` and
-`assembleField.ts`.
+`assembleField.ts`. They work on a real photograph (`public/photo.jpg`), decoded
+the same way the studio decodes an upload.
 
 Built with **Next.js 16** (App Router), **Tailwind CSS v4** and **Motion**.
 
@@ -88,6 +89,13 @@ matrix, so tone is carried by how many cells survive in a neighbourhood rather
 than by any grey. Each surviving cell takes its own threshold from a hash of its
 coordinates, and scroll progress sweeps past them — which is why the picture
 comes up in grain instead of fading in.
+
+In colour mode each cell keeps the colour of the pixel it came from, so what
+forms is the photograph itself rather than a one-ink stencil of it. Those
+colours are quantised to a few hundred entries and the cells are sorted by
+palette entry, so painting sets `fillStyle` once per colour instead of once per
+cell — with tens of thousands of particles that is what keeps it at 60fps.
+Turning colour off gives the 1-bit Bayer dither instead.
 
 Nothing is uploaded anywhere: the file is read in the browser, and the image
 travels inside the generated code as a data URI. It is re-encoded to at most

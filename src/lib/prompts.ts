@@ -67,8 +67,8 @@ export const prompts: Record<string, string> = {
   "intro/ParticleAssemble": p(`
     Build a picture that forms out of dust.
 
-    Reduce the image to a grid of ink cells first — sample it down to around 120
-    columns and threshold it through an 8x8 Bayer matrix, so tone is carried by
+    Reduce the picture to a grid of ink cells first — decode the image, sample
+    it down to around 120 columns and threshold it through an 8x8 Bayer matrix, so tone is carried by
     how many cells survive in a neighbourhood rather than by any grey. Those
     cells are the particles.
 
@@ -278,11 +278,11 @@ export const prompts: Record<string, string> = {
     ${SHARED} The stage owns its own scroll container.
   `),
 
-  "scroll/DitheredScrollPortrait": p(`
-    Build a portrait that develops as you scroll, like a darkroom print coming
-    up in the tray.
+  "scroll/DitheredScrollPhoto": p(`
+    Build a photograph that develops as you scroll, like a darkroom print
+    coming up in the tray.
 
-    Sample an image down to a coarse grid — around 140 columns — and convert
+    Decode a JPEG, then sample it down to a coarse grid — around 140 columns — and convert
     each cell to luminance. Turn luminance into an ink density with a gamma
     curve, drop anything under a dark cut-off so the background stays empty, and
     treat anything above a highlight ceiling as bare paper. Threshold the

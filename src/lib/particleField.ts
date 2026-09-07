@@ -52,6 +52,10 @@ export type Field = {
   n: number;
   cols: number;
   rows: number;
+  /** Palette entry per particle. Absent when the field is a single ink. */
+  tone?: Uint16Array;
+  /** CSS colours, indexed by `tone`. */
+  palette?: string[];
 };
 
 /** Any cell list — dithered image or shape mask — can drive the field. */
@@ -61,6 +65,8 @@ export function createField(source: {
   n: number;
   cols: number;
   rows: number;
+  tone?: Uint16Array;
+  palette?: string[];
 }): Field {
   const seed = new Float32Array(source.n);
   for (let i = 0; i < source.n; i++) seed[i] = Math.random();
@@ -73,6 +79,8 @@ export function createField(source: {
     n: source.n,
     cols: source.cols,
     rows: source.rows,
+    tone: source.tone,
+    palette: source.palette,
   };
 }
 
@@ -141,7 +149,10 @@ export function stepField(
   const half = cell * 0.5;
 
   ctx.clearRect(0, 0, o.width, o.height);
-  ctx.fillStyle = o.ink;
+  const { tone, palette } = f;
+  // Particles are sorted by palette entry, so this only changes on a boundary.
+  let last = -1;
+  if (!tone || !palette) ctx.fillStyle = o.ink;
 
   let moving = false;
 
@@ -182,6 +193,10 @@ export function stepField(
     f.dy[i] = dy;
     if (!moving && dx * dx + dy * dy > 0.02) moving = true;
 
+    if (tone && palette && tone[i] !== last) {
+      last = tone[i];
+      ctx.fillStyle = palette[last];
+    }
     const s = base * (1 - ev * p.thin);
     ctx.fillRect(homeX + dx - s * 0.5, homeY + dy - s * 0.5, s, s);
   }
