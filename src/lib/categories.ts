@@ -18,8 +18,8 @@ export const categories: Category[] = [
     slug: "hero",
     title: "Hero Sections",
     blurb:
-      "Above-the-fold openers — a soft blob kid that walks to your pointer and plays when left alone, scattered media constellations, cursor spotlights, drifting gradient meshes and curtain reveals.",
-    count: 5,
+      "Above-the-fold openers — a botanical negative with a flowing cursor ribbon, a decoding ASCII sculpture, a sculpted blob kid, scattered media constellations, cursor spotlights, drifting gradient meshes and curtain reveals.",
+    count: 7,
     gradient: ["#8b5cf6", "#ec4899"],
   },
   {

@@ -11,6 +11,8 @@ type Props = {
    * prompt that produced it.
    */
   id: string;
+  /** Local helper modules needed to reuse a modular demo. */
+  sourceFiles?: string[];
   title: string;
   description: string;
   tags?: string[];
@@ -26,9 +28,13 @@ const DEMOS_DIR = path.join(process.cwd(), "src", "components", "demos");
  * the code on the page is always the code that ran — there is no second copy
  * to keep in sync.
  */
-function readSource(id: string): string | undefined {
+function readSource(id: string, sourceFiles: string[] = []): string | undefined {
   try {
-    return readFileSync(path.join(DEMOS_DIR, `${id}.tsx`), "utf8");
+    const files = [`${id}.tsx`, ...sourceFiles];
+    return files.map(file => {
+      const source = readFileSync(path.join(DEMOS_DIR, file), "utf8");
+      return files.length === 1 ? source : `// File: ${file}\n${source}`;
+    }).join("\n\n");
   } catch {
     // A renamed or missing demo should cost the card its Code tab, not the
     // whole build.
@@ -36,12 +42,12 @@ function readSource(id: string): string | undefined {
   }
 }
 
-export function DemoCard({ id, children, ...rest }: Props) {
+export function DemoCard({ id, sourceFiles, children, ...rest }: Props) {
   return (
     <DemoFrame
       {...rest}
       prompt={getPrompt(id)}
-      source={readSource(id)}
+      source={readSource(id, sourceFiles)}
       sourcePath={`${id}.tsx`}
     >
       {children}

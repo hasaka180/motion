@@ -1,0 +1,233 @@
+/* The carved edge stays stationary while irregular ink patches spread
+   from a different origin inside every letter. */
+@property --darwin-depth { syntax: "<number>"; inherits: false; initial-value: 1; }
+
+.hero {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  overflow: hidden;
+  container-type: inline-size;
+  touch-action: pan-y;
+  background: #081511;
+  color: #ede7dd;
+}
+
+.artwork {
+  position: absolute;
+  inset: -14px;
+  will-change: transform;
+}
+
+.imageStage {
+  position: absolute;
+  inset: 0;
+}
+
+.flowers {
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(1.25);
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, #04110c0a, transparent 60%, #020b0880);
+}
+
+.wordmark {
+  position: absolute;
+  inset: 24% 4% auto;
+  margin: 0;
+  user-select: none;
+  pointer-events: none;
+  mix-blend-mode: difference;
+}
+
+.writing { display: block; width: 100%; height: auto; overflow: visible; }
+.decoding {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.portal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.welcome {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #f8f6f0;
+  color: #11110f;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity .2s ease-out,
+    visibility 0s linear .2s;
+}
+
+.welcomeInner {
+  width: min(920px, 90%);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px) scale(.985);
+  transition:
+    opacity .6s ease .08s,
+    transform .9s cubic-bezier(.16, 1, .3, 1) .08s;
+}
+
+/* One size for all of it — the title's serif, a step below title size. */
+.welcomeCopy {
+  margin: 0;
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-size: clamp(1.35rem, 5.6cqw, 4.4rem);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -.03em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+/* Dark upper edges and lit lower rims make the ivory glyphs read as
+   recesses in the surface. The completed liquid is the resting state. */
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.letter {
+  position: relative;
+  display: inline-block;
+  color: #e2ddd2;
+  text-shadow:
+    0 calc(-.022em * var(--darwin-depth)) .012em
+      rgb(62 51 34 / calc(.65 * var(--darwin-depth))),
+    calc(.012em * var(--darwin-depth)) calc(.028em * var(--darwin-depth)) .012em
+      rgb(255 255 255 / var(--darwin-depth)),
+    0 calc(.045em * var(--darwin-depth)) .035em
+      rgb(255 255 255 / calc(.65 * var(--darwin-depth)));
+}
+
+.letter::after {
+  content: attr(data-letter);
+  position: absolute;
+  /* Give the italic overhang room without changing the line wrapping. */
+  inset: 0 -.12em;
+  padding-inline: .12em;
+  color: transparent;
+  text-shadow: none;
+  background: linear-gradient(
+    176deg,
+    #090909 15%, #191919 29%, #424242 31%,
+    #171717 34%, #050505 46%, #0b0b0b 72%, #171717 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  clip-path: none;
+}
+
+.hero[data-complete="true"]:not([data-welcome-visible="false"]) .letter {
+  animation: deboss .9s cubic-bezier(.2, .7, .2, 1) calc(450ms + var(--letter-index) * 4ms) both;
+}
+
+.hero[data-complete="true"]:not([data-welcome-visible="false"]) .letter::after {
+  animation: inkSpread var(--ink-duration, 2s) cubic-bezier(.3, .05, .3, 1)
+    var(--ink-delay, 2500ms) both;
+}
+
+@keyframes deboss {
+  /* Start flush with the blank surface, then deepen the carved edges. */
+  from { color: #f8f6f0; --darwin-depth: 0; }
+  to { color: #e2ddd2; --darwin-depth: 1; }
+}
+
+@keyframes inkSpread {
+  0% {
+    clip-path: var(--ink-origin, circle(0% at 50% 50%));
+    background-position: 0 .35em;
+  }
+  45% { clip-path: var(--ink-spread, circle(35% at 50% 50%)); }
+  100% {
+    clip-path: var(--ink-full, circle(150% at 50% 50%));
+    background-position: 0 0;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hero[data-complete="true"] .welcome {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity .2s ease-out,
+    visibility 0s;
+}
+
+.hero[data-complete="true"] .welcomeInner {
+  opacity: 1;
+  filter: none;
+  transform: translate(var(--welcome-x, 0px), var(--welcome-y, 0px)) scale(1);
+}
+
+/* The fade-out keeps its soft blur; the next showing starts sharp, because
+   the deboss needs crisp edges to read at all. */
+.hero[data-complete="true"][data-welcome-visible="false"] .welcomeInner {
+  opacity: 0;
+  filter: blur(12px);
+  transition:
+    opacity .75s ease,
+    filter .9s cubic-bezier(.16, 1, .3, 1);
+}
+
+.trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: difference;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+
+.hero[data-complete="true"] .trail { opacity: 0; }
+
+@container (max-width: 480px) {
+  .wordmark { top: 31%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artwork { will-change: auto; }
+  .imageStage { transform: none; transition: none; }
+  .wordmark { opacity: 1; }
+  .portal { display: none; }
+  .welcome,
+  .welcomeInner { transition: none; }
+  .letter,
+  .letter::after { animation: none !important; }
+  .hero[data-complete="true"] .welcomeInner {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

@@ -20,45 +20,136 @@ const SHARED =
 
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
+  "hero/DarwinNegativeHero": p(`
+    Build a minimal botanical hero around a supplied two-path handwriting SVG.
+    Preserve its exact 638 by 200 viewBox, Bézier geometry, 14.8883 stroke width,
+    and round caps. Draw the first path and then the long connected second path
+    from left to right over roughly four seconds using normalized path lengths.
+    Stroke it white and apply mix-blend-mode: difference to the vector layer so
+    each completed section becomes a true inverted window into the artwork.
+    Place it over a dark, grainy photographic-negative floral artwork with tall
+    carnation stems with cobalt-blue and lilac petals and muted emerald foliage.
+    Use a centered cover crop, 680px desktop and 560px mobile stage heights.
+
+    Generate the original text-free artwork with the built-in image generation
+    tool and save it as public/images/darwin-botanical.webp. This asset is required
+    alongside the component source; do not bake the wordmark into the image.
+    Floral asset prompt: Create a wide 16:9 photographic-negative image of tall
+    carnations and closed buds against an almost-black forest-green background.
+    Center the ruffled blooms in the upper and middle image, with slender stems
+    extending below the frame. Preserve dark space on either side. Use cobalt,
+    electric blue, lavender, lilac, and muted emerald, softly textured petals,
+    darkroom solarization and restrained analog grain. No text, logo or UI.
+
+    Use one transparent Canvas 2D overlay with a white tapered ribbon and CSS
+    mix-blend-mode: difference inside an isolated hero. It must invert both the
+    image and the actual DOM lettering. Ease recent pointer positions into a
+    smooth filled ribbon, 36–90px wide, fading out within 800ms. Add slight floral
+    parallax. After image and font loading, coordinate the pen writing with a
+    Canvas 2D pixel-character decode of the entire floral image and dark space.
+    Sample image colors in a small grid. Resolve changing glyphs and pixel cells
+    into the photograph over three seconds; retain a subtle stable character
+    texture. Keep the opening background cool blue-green. Once the handwriting
+    completes, hand off seamlessly to a second transparent Canvas 2D layer.
+    Draw the inverted floral image through the supplied vector paths using
+    source-in compositing and freeze that completed masked word into an offscreen
+    canvas. Scale the single masked snapshot from 1x to 80x over 1.85 seconds
+    around a point lying directly on the long stroke, so the flower texture stays
+    attached to the same parts of the lettering throughout the zoom. Do not
+    crossfade or switch the background. Counters and open dark spaces continue
+    to show the original green-blue artwork until the expanding stroke physically
+    pushes them outside the viewport; the final frame is filled naturally by the
+    same masked negative image. Before the zoom settles into a held full-negative
+    frame, hand off directly to a warm ivory-white screen with a fast 200ms fade.
+    Show no title — only this exact copy, centred, all of it in one size of the
+    italic display serif a step below title size: “Welcome. You made it. Nothing particularly
+    exciting happens here, but we felt like a welcome screen would make the
+    whole thing look more professional. Click something, or don’t. Honestly,
+    we’re just happy the page loaded.” Keep whole-word wrapping, but split every
+    word into individual letter spans with a continuous index across the copy.
+    On every showing, hold a blank ivory surface for 450ms, then carve the letters
+    into it with dark upper inner edges and white lower rims. Animate depth from
+    zero with surface-colored lettering, with a 4ms letter stagger and 900ms
+    duration. At 2.5 seconds, begin revealing black ink from randomly scattered
+    letters, with a different origin inside each glyph. Shuffle the letters and
+    distribute their starts over 4.2 seconds; vary each spread from 1.6–2.6 seconds.
+    Animate an irregular 24-point polygon from a collapsed seed through a small
+    jagged patch to a shape that fully covers the glyph. Use randomized radial
+    distances so the ink edges advance unevenly, with subtle charcoal reflections.
+    Generate new origins, edges, durations and order on every showing, in the
+    client helper after hydration. Preserve the stationary carved layer underneath.
+    The first ink starts only after all empty recesses have formed. Use black ink.
+    Keep the completed ink as the resting style so hiding never pops. Keep
+    the ivory background visible. Show the copy for a random 12–18
+    seconds, gently fade it out for 3–6 seconds, then show it again with a new
+    random offset of up to 12px per axis. Pause timers while hidden or offscreen
+    and clean them up on disposal. Keep the copy steady with reduced motion.
+    Hide the pointer ribbon during this final welcome state. Reduced motion skips
+    directly to the completed welcome screen.
+    Pointer proximity reactivates local decoding, then settles on exit.
+    Stop animation after the trail settles, suspend when offscreen or hidden,
+    support touch without blocking vertical scroll, cap DPR at 2, and dispose
+    every frame, observer and listener. Reduced motion shows the complete inverted
+    wordmark and photograph immediately with all animated effects disabled.
+    Use React, TypeScript, a CSS module and a helper; no new runtime dependencies.
+  `),
+
+  "hero/AsciiDecodeHero": p(`
+    Create a dark editorial hero inspired by Orange Horse: a dense monochrome
+    character grid behind an oversized abstract sculptural ribbon, a small serif
+    wordmark, bracketed studio copy, and a red condensed four-line headline:
+    WHERE / BRAVE MINDS / SHAPE DIGITAL / WORLDS.
+
+    Render a deforming three-dimensional loop with a Canvas 2D depth buffer.
+    Project a sampled parametric surface into whole character cells. Occlude the
+    background with almost-black cells, then shade the surface with cyan, rose,
+    and white glyphs using a cached glyph atlas. Add slow rotation, organic
+    deformation, occasional stepped row displacements, and eased pointer parallax.
+    Keep the silhouette visibly pixelated; do not use a photograph or video.
+
+    Decode the headline from changing symbols into real letters with staggered
+    line delays. Use fixed-width character slots and one accessible final label.
+    Include pause/resume and replay controls, responsive container-based type,
+    reduced-motion support, capped DPR and frame rate, offscreen/hidden canvas
+    suspension, and cleanup for every animation frame, observer, and listener.
+    Use React, TypeScript, a CSS module, and no additional dependencies. Keep the
+    renderer in a helper module and root the hero in absolute inset-0.
+  `),
+
   "hero/BlobKidHero": p(`
-    Build a hero background: a soft toy character — a blob kid — walking a
-    bright studio, following the pointer, and playing when left alone.
+    Build Blob Kid: a featureless humanoid standing in a warm off-white studio.
+    Use a spherical head about 31% of total height, a visible narrow neck,
+    sloping shoulders, a pear-shaped torso, symmetrical relaxed arms with mitten
+    hands, two separated thick legs, and large rounded feet with soles at Y=0.
+    Blend anatomical joints locally so the neck and limb gaps remain clear.
 
-    Do not model it as a mesh. Build the body as a signed distance field of
-    about thirteen capsules and raymarch it in a single fullscreen fragment
-    shader, welding the capsules with a polynomial smooth-minimum at around
-    0.08. That smooth-min is the character: it fuses the arms into the torso
-    and the feet into the shins with a soft crease rather than a seam, which is
-    what makes it read as one moulded toy. Watch the radii against the spacing
-    — limbs closer together than their radii will weld into a single mass.
+    Model seven seamless analytic signed distance fields: Character, Car,
+    Helicopter, Puppy, Building, Tree, and Phone. Give each an immediately
+    recognizable rounded silhouette and the same pearl-lavender material,
+    cyan left light, peach key, orange floor bounce, and soft contact shadow.
+    Use directional illumination rather than a rainbow texture.
 
-    Toy proportions: an enormous spherical head about a third of the total
-    height, no neck, a rounded trunk, short thick arms hanging at the sides and
-    stubby legs ending in blunt feet.
+    Transform any form into any other over 3.4 seconds. Compress the source,
+    smoothly blend its distance field into a wobbling central liquid mass,
+    then reform the target with a small settling bounce. Both halves must
+    reach exactly the same central field, hiding topology changes without
+    mesh swaps or opacity fades. Use one state machine and reject concurrent
+    requests. Restore the exact original character when returning to it.
 
-    Light it like a studio, in three colours. A warm key from above and in
-    front, a cyan fill from the left, and a saturated orange bounce off the
-    floor whose strength falls off exponentially with height, so it only
-    reaches the legs and feet — that last one is what makes the feet glow.
-    Sit it on a near-white gradient with a soft contact shadow and a warm
-    bounce on the floor beneath it. Add a wide soft specular and a gentle
-    fresnel rim, or it will not separate from a white room.
+    Add responsive form buttons, current-form state, phase feedback, reset,
+    number shortcuts 1–7, drag and arrow-key orbit, pinch and button zoom, and
+    true orthographic front, side, rear, and top inspection views. Preserve
+    the camera during transitions. Animate subtle form-specific idles only
+    in the presentation view; keep inspection views still. Respect reduced
+    motion with immediate user-requested changes and no idle movement.
 
-    Pose the field from a skeleton: compute bone matrices on the CPU and send
-    the shader only each capsule's two endpoints and radius, so it knows
-    nothing about walking. Drive the pose from a flat array of joint angles so
-    two poses can be blended. Write a procedural walk cycle — opposed hips and
-    shoulders, a knee that bends on the back swing, a bob at twice the stride —
-    and idle activities: a hop with tucked knees, a spin with the arms out, a
-    wave. Ease every joint toward its target so changing behaviour is a
-    transition rather than a cut. Turn side-on while travelling, and back to
-    face the viewer when it stops.
+    Compile every form before enabling controls. Include a loading state and
+    recoverable WebGL errors. Cap DPR, adapt resolution to sustained frame
+    cost, skip rays outside the bounding sphere, pause when hidden or offscreen,
+    and dispose all GPU resources, observers, and listeners on unmount.
 
-    Raymarch below native resolution — the field is soft, so it costs almost
-    nothing visually — and skip the march entirely for rays that miss a
-    bounding sphere around the body.
-
-    ${SHARED} Raw WebGL2, no 3D library: one triangle and one shader.
+    ${SHARED} Raw WebGL2, no additional dependencies. Keep the form state,
+    shader definitions, renderer lifecycle, and React controls in modules.
   `),
 
   "hero/ScatteredMediaHero": p(`
