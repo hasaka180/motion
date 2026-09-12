@@ -31,6 +31,11 @@ export const prompts: Record<string, string> = {
     softly masked rotations and vertical breathing to the two figures, around
     image coordinates (.35,.33) and (.63,.35). Animate gentle expanding radial
     refraction across the upper water surface, suppressing distortion on faces.
+    Give each foreground catfish an independent slow glide, bob and tail flex.
+    Sway green aquatic plant strokes with their roots anchored to the riverbed,
+    suppressing plant deformation on the fish. Float the painted bubbles gently
+    and add sixteen translucent rising bubbles with staggered speeds, sideways
+    drift and faded lifetimes. Drive every layer from the same pausable clock.
     Preserve the printed texture and keep HTML typography steady. Supply a static
     image fallback for loading and unavailable or lost WebGL contexts. Support
     context restoration, reduced motion, mobile framing, and pause rendering

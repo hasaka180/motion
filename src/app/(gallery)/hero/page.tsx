@@ -25,8 +25,8 @@ export default function Page() {
           id="hero/RiverIllustrationHero"
           sourceFiles={["hero/RiverIllustrationHero.module.css", "hero/river-motion.ts"]}
           title="Beneath the surface — an illustrated escape"
-          description="A sunlit river painted in turquoise and ink. Water ripples gently around two independently moving figures, with oversized catfish below and an editorial headline above the riverbed."
-          tags={["original illustration", "water refraction", "subtle character motion", "WebGL"]}
+          description="A sunlit river painted in turquoise and ink. Water ripples around two moving figures as catfish glide gently, aquatic plants sway and bubbles rise through the scene."
+          tags={["original illustration", "water refraction", "living underwater scene", "WebGL"]}
           stageClassName="h-[620px] sm:h-[720px]"
         >
           <RiverIllustrationHero />
