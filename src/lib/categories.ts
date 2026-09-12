@@ -18,8 +18,8 @@ export const categories: Category[] = [
     slug: "hero",
     title: "Hero Sections",
     blurb:
-      "Above-the-fold openers — a scroll-driven botanical study, an interactive desktop, a botanical negative, a decoding ASCII sculpture, a sculpted blob kid, scattered media, cursor spotlights, gradient meshes and curtain reveals.",
-    count: 9,
+      "Above-the-fold openers — an illustrated river escape, a scroll-driven botanical study, an interactive desktop, a botanical negative, a decoding ASCII sculpture, a sculpted blob kid, scattered media, cursor spotlights, gradient meshes and curtain reveals.",
+    count: 10,
     gradient: ["#8b5cf6", "#ec4899"],
   },
   {

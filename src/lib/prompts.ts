@@ -20,6 +20,25 @@ const SHARED =
 
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
+  "hero/RiverIllustrationHero": p(`
+    Create an underwater editorial illustration hero, with textured gouache art
+    of two people seen through a bright rippling river surface, enormous teal
+    catfish and aquatic plants. Generate original text-free art inspired by the
+    supplied reference and save as public/images/river/underwater.png.
+    Overlay pale yellow BENEATH THE SURFACE typography, a FIELDWORK masthead,
+    small editorial captions and an accessible pause/resume motion button.
+    Use a WebGL texture shader with object-fit cover coordinates. Apply separate
+    softly masked rotations and vertical breathing to the two figures, around
+    image coordinates (.35,.33) and (.63,.35). Animate gentle expanding radial
+    refraction across the upper water surface, suppressing distortion on faces.
+    Preserve the printed texture and keep HTML typography steady. Supply a static
+    image fallback for loading and unavailable or lost WebGL contexts. Support
+    context restoration, reduced motion, mobile framing, and pause rendering
+    offscreen or in hidden tabs. Cap DPR at 1.5 and rendering at 30fps. Dispose
+    GPU resources, observers and listeners. Use a React client component,
+    TypeScript, CSS modules and a renderer helper with no new dependencies.
+  `),
+
   "hero/LiliumScrollHero": p(`
     Create a scroll-driven botanical hero in thirteen frames, using red lily
     photography over ivory, scarlet and black. Generate a transparent full red

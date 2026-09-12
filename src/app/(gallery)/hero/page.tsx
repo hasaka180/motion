@@ -6,6 +6,7 @@ import { AsciiDecodeHero } from "@/components/demos/hero/AsciiDecodeHero";
 import { DarwinNegativeHero } from "@/components/demos/hero/DarwinNegativeHero";
 import { MacDesktopHero } from "@/components/demos/hero/MacDesktopHero";
 import { LiliumScrollHero } from "@/components/demos/hero/LiliumScrollHero";
+import { RiverIllustrationHero } from "@/components/demos/hero/RiverIllustrationHero";
 import { ScatteredMediaHero } from "@/components/demos/hero/ScatteredMediaHero";
 import { SpotlightHero } from "@/components/demos/hero/SpotlightHero";
 import { GradientMeshHero } from "@/components/demos/hero/GradientMeshHero";
@@ -20,6 +21,17 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="hero/RiverIllustrationHero"
+          sourceFiles={["hero/RiverIllustrationHero.module.css", "hero/river-motion.ts"]}
+          title="Beneath the surface — an illustrated escape"
+          description="A sunlit river painted in turquoise and ink. Water ripples gently around two independently moving figures, with oversized catfish below and an editorial headline above the riverbed."
+          tags={["original illustration", "water refraction", "subtle character motion", "WebGL"]}
+          stageClassName="h-[620px] sm:h-[720px]"
+        >
+          <RiverIllustrationHero />
+        </DemoCard>
+
         <DemoCard
           id="hero/LiliumScrollHero"
           sourceFiles={["hero/LiliumScrollHero.module.css", "hero/lilium/renderer.ts"]}
