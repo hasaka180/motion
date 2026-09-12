@@ -4,6 +4,7 @@ import { getCategory } from "@/lib/categories";
 import { BlobKidHero } from "@/components/demos/hero/BlobKidHero";
 import { AsciiDecodeHero } from "@/components/demos/hero/AsciiDecodeHero";
 import { DarwinNegativeHero } from "@/components/demos/hero/DarwinNegativeHero";
+import { MacDesktopHero } from "@/components/demos/hero/MacDesktopHero";
 import { ScatteredMediaHero } from "@/components/demos/hero/ScatteredMediaHero";
 import { SpotlightHero } from "@/components/demos/hero/SpotlightHero";
 import { GradientMeshHero } from "@/components/demos/hero/GradientMeshHero";
@@ -18,6 +19,17 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="hero/MacDesktopHero"
+          sourceFiles={["hero/MacDesktopHero.module.css", "hero/desktop-flow.ts"]}
+          title="Desktop — a space for ideas"
+          description="A macOS-inspired portfolio over slowly flowing blue surfaces with luminous edges. Click folders to open page windows, drag them around, or minimize them to the frosted dock."
+          tags={["desktop interface", "folder navigation", "draggable windows", "application dock"]}
+          stageClassName="h-[660px] sm:h-[700px]"
+        >
+          <MacDesktopHero />
+        </DemoCard>
+
         <DemoCard
           id="hero/DarwinNegativeHero"
           sourceFiles={["hero/DarwinNegativeHero.module.css", "hero/darwin-negative/trail.ts", "hero/darwin-negative/reveal.ts"]}

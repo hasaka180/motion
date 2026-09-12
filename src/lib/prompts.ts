@@ -20,6 +20,35 @@ const SHARED =
 
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
+  "hero/MacDesktopHero": p(`
+    Create a macOS-inspired portfolio desktop as a React client component with a
+    CSS module. Fill a 700px desktop / 660px mobile stage. Render a procedural
+    WebGL wallpaper of slowly flowing powder-blue surfaces. Use a broad curved
+    lower boundary and a rounded fold entering from the upper right, with cyan
+    light on the faces, soft white edges, peach-pink rim reflections and fine
+    static grain. Animate the curves gently with sine functions. Cap rendering
+    at 30fps and DPR 1.5, pause when hidden or offscreen, and show a still frame
+    with reduced motion. Handle context loss/restoration and provide a static
+    CSS gradient fallback. Keep the botanical asset for project thumbnails and
+    page content only. Place a translucent menu bar at the top, a live local
+    clock, a large editorial serif welcome, a small project image file, four
+    blue folder buttons at the right, and a frosted application dock below.
+    Single-click Work, About, Notes, or Library to open a separate page window.
+    Work opens a botanical project detail; Library links to the existing gallery
+    routes. Supply complete editorial content for each page. Use white windows,
+    traffic-light controls, a draggable title bar, independent scrolling content,
+    and a subtle footer. Support multiple windows, focus stacking, close,
+    minimize, dock restore, maximize/restore, and Show desktop. Never duplicate
+    an already open page. Use pointer capture for dragging; clamp positions to
+    the desktop bounds and reclamp on resize. Support arrow-key title movement,
+    Escape to close, accessible dialog labels, visible focus, and focus return.
+    Use CSS folder and app icons, no external runtime dependencies. Retain all
+    functionality on mobile and skip decorative motion with reduced motion.
+    Clean up the clock, observers, frame, listeners and GPU resources on unmount.
+    Include the component, CSS, desktop-flow helper and botanical project asset
+    when reusing the component.
+  `),
+
   "hero/DarwinNegativeHero": p(`
     Build a minimal botanical hero around a supplied two-path handwriting SVG.
     Preserve its exact 638 by 200 viewBox, Bézier geometry, 14.8883 stroke width,
