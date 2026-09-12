@@ -5,6 +5,7 @@ import { BlobKidHero } from "@/components/demos/hero/BlobKidHero";
 import { AsciiDecodeHero } from "@/components/demos/hero/AsciiDecodeHero";
 import { DarwinNegativeHero } from "@/components/demos/hero/DarwinNegativeHero";
 import { MacDesktopHero } from "@/components/demos/hero/MacDesktopHero";
+import { LiliumScrollHero } from "@/components/demos/hero/LiliumScrollHero";
 import { ScatteredMediaHero } from "@/components/demos/hero/ScatteredMediaHero";
 import { SpotlightHero } from "@/components/demos/hero/SpotlightHero";
 import { GradientMeshHero } from "@/components/demos/hero/GradientMeshHero";
@@ -19,6 +20,17 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="hero/LiliumScrollHero"
+          sourceFiles={["hero/LiliumScrollHero.module.css", "hero/lilium/renderer.ts"]}
+          title="Lilium — a botanical study"
+          description="Thirteen scroll-driven frames turn a red lily into a digital specimen: registration grids, pixel silhouettes, negative scans, surface tracking, anatomy cards, and living geometry. Scroll inside the stage or use the timeline to explore."
+          tags={["scroll choreography", "13 frames", "pixel transitions", "botanical analysis"]}
+          stageClassName="h-[600px] sm:h-[680px]"
+        >
+          <LiliumScrollHero />
+        </DemoCard>
+
         <DemoCard
           id="hero/MacDesktopHero"
           sourceFiles={["hero/MacDesktopHero.module.css", "hero/desktop-flow.ts"]}

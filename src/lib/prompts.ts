@@ -20,6 +20,32 @@ const SHARED =
 
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
+  "hero/LiliumScrollHero": p(`
+    Create a scroll-driven botanical hero in thirteen frames, using red lily
+    photography over ivory, scarlet and black. Generate a transparent full red
+    lily specimen with a long green stem and a separate transparent unopened bud;
+    save them as public/images/lilium/specimen.png and bud.png. Preserve the alpha.
+    Build the remaining design from live Canvas 2D layers, not baked screenshots.
+    Sequence: ivory registration grid and specimen; red pixel/cross silhouette
+    and LILIUM title; expanding negative inspection aperture; full cyan inversion;
+    red macro with coordinate markers; tracking boxes and cyan detail crops;
+    pixel dissolution; grayscale displacement with connecting arcs; five labeled
+    anatomy cards on red; bud/stamen cards integrated with BLOOM typography;
+    oversized red IN BLOOM on ivory; red flower over LIVING GEOMETRY and dots;
+    cyan flower with geometric arcs, control points and a black technical grid.
+    Use one source image for connected crops, silhouettes and color variants.
+    Sample its alpha to constrain coordinate markers and pixel silhouettes.
+    Scroll within the demo's own container with a sticky canvas and a thirteen-
+    viewport track. Map scroll reversibly to frame progress, with gentle zooms,
+    pixel wipes, expanding apertures and layered transitions. Include a timeline,
+    frame buttons, previous/next controls, accessible labels and keyboard scrolling.
+    In reduced motion, change directly between still frames. Draw only when the
+    scroll or size changes; pause offscreen and when the document is hidden. Cap
+    DPR at 1.6 and dispose image handlers, listeners, observers and offscreen
+    buffers. Support desktop and mobile. Use React, TypeScript, CSS modules and
+    a separate renderer helper, without new runtime dependencies.
+  `),
+
   "hero/MacDesktopHero": p(`
     Create a macOS-inspired portfolio desktop as a React client component with a
     CSS module. Fill a 700px desktop / 660px mobile stage. Render a procedural
