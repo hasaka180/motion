@@ -10,7 +10,7 @@ const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const ease = (value: number) => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const random = (index: number) => { const x = Math.sin(index * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
-export function createLiliumRenderer(canvas: HTMLCanvasElement, specimen: HTMLImageElement, bud: HTMLImageElement, blossom?: HTMLImageElement) {
+export function createLiliumRenderer(canvas: HTMLCanvasElement, specimen: HTMLImageElement, bud: HTMLImageElement) {
   const output = canvas.getContext("2d");
   if (!output) return null;
   const source = document.createElement("canvas");
@@ -34,7 +34,6 @@ export function createLiliumRenderer(canvas: HTMLCanvasElement, specimen: HTMLIm
     return result;
   }
   const negative = makeNegative(source);
-  const negativeBloom = blossom ? makeNegative(blossom) : negative;
   const grey = document.createElement("canvas");
   grey.width = source.width; grey.height = source.height;
   const greyContext = grey.getContext("2d")!;
@@ -186,8 +185,8 @@ export function createLiliumRenderer(canvas: HTMLCanvasElement, specimen: HTMLIm
   }
   function bloom(ctx: CanvasRenderingContext2D, phase: number, negativeMode = false) {
     const size = Math.min(width * .60, height * .74) * (1 + phase * .025);
-    const bloomImage = negativeMode ? negativeBloom : blossom ?? source;
-    const cropHeight = blossom ? bloomImage.height : source.height * .60;
+    const bloomImage = negativeMode ? negative : source;
+    const cropHeight = source.height * .60;
     ctx.save(); ctx.translate(width * .52, height * .51); ctx.rotate((phase - .5) * .10);
     ctx.drawImage(bloomImage, 0, 0, bloomImage.width, cropHeight, -size / 2, -size / 2, size, size);
     if (negativeMode) {
@@ -286,5 +285,5 @@ export function createLiliumRenderer(canvas: HTMLCanvasElement, specimen: HTMLIm
       } else { output!.globalAlpha = mix; output!.drawImage(layers[1], 0, 0); output!.globalAlpha = 1; }
     }
   }
-  return { draw, dispose: () => { [source, negative, negativeBloom, grey, ...layers].forEach(layer => { layer.width = 1; layer.height = 1; }); } };
+  return { draw, dispose: () => { [source, negative, grey, ...layers].forEach(layer => { layer.width = 1; layer.height = 1; }); } };
 }
