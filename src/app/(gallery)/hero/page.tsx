@@ -1,4 +1,5 @@
 import { DemoCard } from "@/components/site/DemoCard";
+import { AshenEclipseHero } from "@/components/demos/hero/AshenEclipseHero";
 import { PageHeader } from "@/components/site/PageHeader";
 import { getCategory } from "@/lib/categories";
 import { BlobKidHero } from "@/components/demos/hero/BlobKidHero";
@@ -21,6 +22,17 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="hero/AshenEclipseHero"
+          sourceFiles={["hero/AshenEclipseHero.module.css", "hero/ashen/timeline.ts", "hero/ashen/sequence.ts"]}
+          title="Ashen eclipse — the awakening"
+          description="Scroll through a cinematic image sequence: the wasteland emerges from darkness, a green eclipse appears, and an ancient armored hand rises before gripping the earth. Scroll inside the scene, or focus it and use arrow keys or Page Down."
+          tags={["18 photographic frames", "scroll-scrubbed", "cinematic realism", "Canvas 2D"]}
+          stageClassName="h-[560px] sm:h-[680px]"
+        >
+          <AshenEclipseHero />
+        </DemoCard>
+
         <DemoCard
           id="hero/RiverIllustrationHero"
           sourceFiles={["hero/RiverIllustrationHero.module.css", "hero/river-motion.ts"]}

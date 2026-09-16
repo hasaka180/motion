@@ -1,0 +1,12 @@
+{
+  "width": 960,
+  "height": 540,
+  "count": 18,
+  "sourcePoses": 18,
+  "transition": "short photographic dissolve; no motion warping",
+  "anchors": [
+    8,
+    9,
+    17
+  ]
+}

@@ -6,6 +6,7 @@ import { PixelDissolve } from "@/components/demos/transitions/PixelDissolve";
 import { SlatTransition } from "@/components/demos/transitions/SlatTransition";
 import { ModalTransition } from "@/components/demos/transitions/ModalTransition";
 import { RouteStack } from "@/components/demos/transitions/RouteStack";
+import { PrismaticTransition } from "@/components/demos/transitions/PrismaticTransition";
 
 export const metadata = { title: "Page Transitions" };
 
@@ -16,6 +17,19 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="grid gap-6 xl:grid-cols-2">
+        <div className="xl:col-span-2">
+          <DemoCard
+            id="transitions/PrismaticTransition"
+            sourceFiles={["transitions/prismatic/renderer.ts", "transitions/PrismaticTransition.module.css"]}
+            title="Prismatic section transition"
+            description="A fractured wave of pixels moves between pink chrome and a dark spectrum of glass. Click anywhere to send the transition outward from that point."
+            tags={["radial mosaic", "chromatic displacement", "canvas"]}
+            stageClassName="h-[520px] sm:h-[560px]"
+          >
+            <PrismaticTransition />
+          </DemoCard>
+        </div>
+
         <DemoCard
           id="transitions/PixelDissolve"
           title="Pixel dissolve"

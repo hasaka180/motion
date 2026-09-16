@@ -18,8 +18,8 @@ export const categories: Category[] = [
     slug: "hero",
     title: "Hero Sections",
     blurb:
-      "Above-the-fold openers — an illustrated river escape, a scroll-driven botanical study, an interactive desktop, a botanical negative, a decoding ASCII sculpture, a sculpted blob kid, scattered media, cursor spotlights, gradient meshes and curtain reveals.",
-    count: 10,
+      "Above-the-fold openers — a cinematic wasteland image sequence, an illustrated river escape, a scroll-driven botanical study, an interactive desktop, a botanical negative, a decoding ASCII sculpture, a sculpted blob kid, scattered media, cursor spotlights, gradient meshes and curtain reveals.",
+    count: 11,
     gradient: ["#8b5cf6", "#ec4899"],
   },
   {
@@ -74,8 +74,8 @@ export const categories: Category[] = [
     slug: "transitions",
     title: "Page Transitions",
     blurb:
-      "Moving between views. Pixel dissolves, slat wipes, shared-layout tabs, spring modals and a push/pop route stack.",
-    count: 5,
+      "Moving between views. Prismatic section transitions, pixel dissolves, slat wipes, shared-layout tabs, spring modals and a push/pop route stack.",
+    count: 6,
     gradient: ["#0ea5e9", "#6366f1"],
   },
 ];

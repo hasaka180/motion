@@ -39,14 +39,14 @@ npm run lint
 
 | Route          | Category                   | Demos |
 | -------------- | -------------------------- | ----- |
-| `/hero`        | Hero Sections              | 5     |
+| `/hero`        | Hero Sections              | 11    |
 | `/intro`       | Intro Animations           | 4     |
 | `/text`        | Text Animations            | 5     |
 | `/carousel`    | Carousels                  | 4     |
 | `/scroll`      | Scroll Animations          | 7     |
 | `/hover`       | Hover & Micro-interactions | 5     |
 | `/loaders`     | Loaders & Spinners         | 3     |
-| `/transitions` | Page Transitions           | 5     |
+| `/transitions` | Page Transitions           | 6     |
 
 Plus one tool:
 

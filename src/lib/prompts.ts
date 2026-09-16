@@ -20,6 +20,34 @@ const SHARED =
 
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
+  "hero/AshenEclipseHero": p(`
+    Create a cinematic, scroll-scrubbed image-sequence hero based on the supplied dark
+    science-fiction wasteland references. Darkness, then cracked land rising
+    from below, then a massive green eclipsed moon through fog. Only after
+    those reveals do the fingertips break through the rubble. An ancient
+    armored gauntlet emerges, opens into a reaching pose, then lowers and
+    curls its fingers into the ground. Dust and cracks settle.
+
+    Generate consistent photographic poses with a fixed camera and export
+    them as WebP frames. Draw the frame selected by absolute scroll
+    progress on Canvas 2D so reversing scroll reverses the sequence. Preserve
+    the dark chipped metal and terrain detail. Add restrained fog drift and a
+    subtle camera push and short dissolves between clean poses. Hold the supplied
+    open-hand reference before the lowering phase and finish on the supplied
+    ground-grip reference. Avoid motion-warped fingers. Use a bounded cache, preload nearby
+    frames, and show a matching contact-sheet pose during uncached seeks.
+    No visible text, logos, face, character body, fast action or cartoon bounce.
+
+    Own the scroll container inside the gallery stage. Support keyboard
+    scrolling, responsive framing, Replay, and a static final composition for
+    reduced motion. Pause offscreen and release image bitmaps on unmount.
+    Assets: /images/ashen/wasteland.webp (generated environment plate),
+    /images/ashen/settled.jpg (supplied reference, still fallback), and
+    /images/ashen/frames/000.webp through 017.webp (photographic pose sequence).
+    No new runtime dependencies.
+    See images/ashen/artwork.md for generation prompts and provenance.
+  `),
+
   "hero/RiverIllustrationHero": p(`
     Create an underwater editorial illustration hero, with textured gouache art
     of two people seen through a bright rippling river surface, enormous teal
@@ -619,6 +647,26 @@ export const prompts: Record<string, string> = {
   `),
 
   // --------------------------------------------------------- transitions
+  "transitions/PrismaticTransition": p(`
+    Build a full-width section transition inspired by fractured digital glass:
+    a luminous pink crystalline scene with a rainbow chrome torus transitions
+    into a dark field of spectral glass columns and reflections. Render both
+    artworks locally on cached canvases, without external assets or libraries.
+
+    Reveal the incoming scene through a square mosaic expanding radially from
+    the click position. Give each tile a deterministic noisy arrival time and
+    briefly displace its image sample near the transition front, with violet,
+    pink, blue and black fragments. Settle into a completely clean image.
+    Keep the navigation and editorial typography stable above the artwork.
+
+    Preview once on entering the viewport, allow keyboard-accessible scene
+    changes, prevent overlapping transitions, and switch immediately under
+    reduced motion. Resize responsively, cap pixel density, stop animation
+    offscreen, and clean up observers, timers and animation frames on unmount.
+
+    ${SHARED}
+  `),
+
   "transitions/PixelDissolve": p(`
     Build a frame-to-frame transition made of a tile grid — roughly 32 by 14 —
     that assembles the incoming image along a diagonal front. Each tile carries
