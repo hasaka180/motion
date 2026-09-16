@@ -33,6 +33,15 @@ export const metadata: Metadata = {
     siteName: site.name,
     type: "website",
   },
+  // The share images and icons are file conventions in this folder —
+  // opengraph-image.jpg, twitter-image.jpg, icon.png, apple-icon.png — the
+  // same set thedarwin.co serves, so a shared link reads as part of Darwin.
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} — ${site.tagline}`,
+    description:
+      "A categorised repository of production-ready React animations, by thedarwin.co.",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
