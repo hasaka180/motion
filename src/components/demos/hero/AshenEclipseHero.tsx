@@ -18,6 +18,10 @@ export function AshenEclipseHero() {
     let renderer: ReturnType<typeof createSequenceRenderer> | undefined;
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
     function unavailable() { if (!disposed) { failed = true; setFallback(true); } }
+    function loading(loaded: number, total: number) {
+      root!.style.setProperty("--loaded", String(loaded / total));
+      root!.dataset.loaded = String(loaded === total);
+    }
     function readScroll() {
       const range = scroll!.scrollHeight - scroll!.clientHeight;
       target = range > 0 ? scroll!.scrollTop / range : 0;
@@ -52,7 +56,7 @@ export function AshenEclipseHero() {
       visible = entry.isIntersecting;
       if (visible) {
         if (!renderer && !failed) {
-          try { renderer = createSequenceRenderer(surface, schedule, unavailable); root.dataset.ready = "true"; resize(); }
+          try { renderer = createSequenceRenderer(surface, schedule, unavailable, loading); root.dataset.ready = "true"; resize(); }
           catch { unavailable(); }
         }
         schedule();
@@ -73,12 +77,13 @@ export function AshenEclipseHero() {
   }, []);
 
   return (
-    <section ref={host} className={styles.hero} aria-label="Ashen eclipse — cinematic wasteland reveal">
-      <div ref={scroller} className={styles.scroller} tabIndex={0} aria-label="Scroll through the cinematic image sequence. Use arrow keys, Page Down, Home or End to reveal the hand.">
+    <section ref={host} className={styles.hero} aria-label="Ashen eclipse — the awakening">
+      <div ref={scroller} className={styles.scroller} tabIndex={0} aria-label="Scroll through the thirty-frame sequence. Use arrow keys, Page Down, Home or End to raise the hand.">
         <div className={styles.track}>
           <div className={styles.screen}>
-            <canvas ref={canvas} className={styles.canvas} role="img" aria-label="An ancient armored hand emerges from a ruined wasteland under a green eclipse, then lowers and grips the earth." />
+            <canvas ref={canvas} className={styles.canvas} role="img" aria-label="An armored hand breaks through a ruined wasteland, rises before a green eclipse, then lowers and grips the earth." />
             <div className={styles.grade} />
+            <div className={styles.loader} aria-hidden="true" />
             {fallback && <div className={styles.fallback} role="img" aria-label="Final frame: the armored hand gripping the wasteland under a green eclipse." />}
             {fallback && <p className={styles.srOnly} role="status">The sequence is unavailable. Its final reference image is shown.</p>}
           </div>

@@ -26,8 +26,8 @@ export default function Page() {
           id="hero/AshenEclipseHero"
           sourceFiles={["hero/AshenEclipseHero.module.css", "hero/ashen/timeline.ts", "hero/ashen/sequence.ts"]}
           title="Ashen eclipse — the awakening"
-          description="Scroll through a cinematic image sequence: the wasteland emerges from darkness, a green eclipse appears, and an ancient armored hand rises before gripping the earth. Scroll inside the scene, or focus it and use arrow keys or Page Down."
-          tags={["18 photographic frames", "scroll-scrubbed", "cinematic realism", "Canvas 2D"]}
+          description="A thirty-frame image sequence scrubbed by scroll: an armored hand breaks the ground of a ruined wasteland, rises before a green eclipse, then lowers and grips the earth. Scroll inside the scene, or focus it and use arrow keys or Page Down."
+          tags={["30-frame sequence", "scroll-scrubbed", "windowed decoding", "Canvas 2D"]}
           stageClassName="h-[560px] sm:h-[680px]"
         >
           <AshenEclipseHero />

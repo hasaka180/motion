@@ -21,31 +21,37 @@ const SHARED =
 export const prompts: Record<string, string> = {
   // ---------------------------------------------------------------- hero
   "hero/AshenEclipseHero": p(`
-    Create a cinematic, scroll-scrubbed image-sequence hero based on the supplied dark
-    science-fiction wasteland references. Darkness, then cracked land rising
-    from below, then a massive green eclipsed moon through fog. Only after
-    those reveals do the fingertips break through the rubble. An ancient
-    armored gauntlet emerges, opens into a reaching pose, then lowers and
-    curls its fingers into the ground. Dust and cracks settle.
+    Build a scroll-scrubbed image-sequence hero from thirty consecutive
+    full-HD WebP frames of one continuous shot with a fixed camera: a dark
+    ruined wasteland, the ground breaking, an armored gauntlet rising before a
+    green eclipse, then lowering to grip the earth.
 
-    Generate consistent photographic poses with a fixed camera and export
-    them as WebP frames. Draw the frame selected by absolute scroll
-    progress on Canvas 2D so reversing scroll reverses the sequence. Preserve
-    the dark chipped metal and terrain detail. Add restrained fog drift and a
-    subtle camera push and short dissolves between clean poses. Hold the supplied
-    open-hand reference before the lowering phase and finish on the supplied
-    ground-grip reference. Avoid motion-warped fingers. Use a bounded cache, preload nearby
-    frames, and show a matching contact-sheet pose during uncached seeks.
-    No visible text, logos, face, character body, fast action or cartoon bounce.
+    Map absolute scroll progress to a fractional frame, with a short hold on
+    the first and last, and draw it with object-fit: cover on Canvas 2D, so
+    reversing the scroll reverses the shot exactly. Blend the two neighbouring
+    frames by the fractional part to remove the step between them — but only
+    when both real frames are ready, never inventing motion. Ease the scroll
+    position slightly so a wheel flick glides.
 
-    Own the scroll container inside the gallery stage. Support keyboard
-    scrolling, responsive framing, Replay, and a static final composition for
-    reduced motion. Pause offscreen and release image bitmaps on unmount.
-    Assets: /images/ashen/wasteland.webp (generated environment plate),
-    /images/ashen/settled.jpg (supplied reference, still fallback), and
-    /images/ashen/frames/000.webp through 017.webp (photographic pose sequence).
+    Thirty full-HD frames are around 250MB decoded, so never hold them all as
+    bitmaps. Fetch every frame, nearest the playhead first and a few at a time,
+    and keep each as its compressed blob. Decode only a window of about five
+    frames either side of the playhead, at the size the frame is actually drawn
+    (resizeWidth/resizeHeight on createImageBitmap, falling back to a plain
+    decode where unsupported), quantised so small layout shifts don't discard
+    the window. Close bitmaps that leave it. Until the exact frame is ready,
+    draw the closest one that is. Show a hairline of load progress that leaves
+    once every frame has arrived.
+
+    Add only faint drifting ash — the photographs carry the atmosphere. Own the
+    scroll container inside the gallery stage, support keyboard scrolling,
+    start loading only when the stage comes into view, pause offscreen and when
+    the tab is hidden, and release every bitmap and abort every fetch on
+    unmount. Reduced motion shows the final frame, still. If most frames fail,
+    fall back to the final frame as a CSS background.
+
+    Assets: /images/frames/frame-0001.webp through frame-0030.webp.
     No new runtime dependencies.
-    See images/ashen/artwork.md for generation prompts and provenance.
   `),
 
   "hero/RiverIllustrationHero": p(`

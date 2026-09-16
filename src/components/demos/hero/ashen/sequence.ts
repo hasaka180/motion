@@ -1,154 +1,181 @@
-import { clamp, phase } from "./timeline";
+import { clamp } from "./timeline";
 
-export const FRAME_COUNT = 18;
-export const frameAt = (progress: number) => progress < .74
-  ? phase(progress, .40, .65) * 8
-  : 8 + phase(progress, .74, .98) * 9;
-const ASSETS = "/images/ashen/";
-const WIDTH = 960, HEIGHT = 540;
-const CACHE_LIMIT = 18;
+/** The shot: a wasteland, a hand breaking the ground, the eclipse, the grip. */
+export const FRAME_COUNT = 30;
+const frameUrl = (i: number) => `/images/frames/frame-${String(i + 1).padStart(4, "0")}.webp`;
+const WIDTH = 1916, HEIGHT = 1080;
 
-/** Bounded decoded-frame cache. Sprite sheets provide an immediate seek preview. */
-export function createSequenceRenderer(canvas: HTMLCanvasElement, invalidate: () => void, onError: () => void) {
+/** Frames either side of the playhead kept decoded. Everything else stays a compressed blob. */
+const WINDOW = 5;
+const CONCURRENCY = 4;
+
+/** Scroll to a fractional frame, holding briefly on the first and last. */
+export const frameAt = (progress: number) => clamp((progress - .03) / .94) * (FRAME_COUNT - 1);
+
+/**
+ * A scroll-scrubbed image sequence.
+ *
+ * Thirty full-HD frames would be around 250MB decoded, so only a window around
+ * the playhead is ever a bitmap, decoded at the size it is drawn. Every fetched
+ * frame is kept as its compressed blob, so scrubbing back re-decodes locally
+ * instead of hitting the network. Fetches go out nearest-the-playhead first,
+ * which means the frame you are looking at is always the next one to arrive.
+ */
+export function createSequenceRenderer(
+  canvas: HTMLCanvasElement,
+  invalidate: () => void,
+  onError: () => void,
+  onProgress: (loaded: number, total: number) => void,
+) {
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas is unavailable");
-  let disposed = false, width = 1, height = 1, ratio = 1, wanted = 0;
-  const cache = new Map<number, ImageBitmap>();
-  const requests = new Map<number, AbortController>();
+  const context = ctx;
+
+  let disposed = false, width = 1, height = 1, ratio = 1;
+  let playhead = -1, decodeWidth = 0, decodeHeight = 0;
+  const blobs = new Map<number, Blob>();
+  const bitmaps = new Map<number, ImageBitmap>();
+  const decoding = new Set<number>();
+  const fetching = new Map<number, AbortController>();
   const failed = new Set<number>();
-  const assets = new Map<string, ImageBitmap>();
-  const assetController = new AbortController();
-  let pending: number[] = [];
+  const nearest = (a: number, b: number) => Math.abs(a - playhead) - Math.abs(b - playhead);
 
-  async function loadAsset(name: string, url: string) {
-    try {
-      const response = await fetch(url, { signal: assetController.signal });
-      if (!response.ok) throw new Error(`Missing scene asset: ${url}`);
-      const bitmap = await createImageBitmap(await response.blob());
-      if (disposed) { bitmap.close(); return; }
-      assets.set(name, bitmap); invalidate();
-    } catch { if (!disposed && !assetController.signal.aborted) onError(); }
-  }
-  void loadAsset("land", `${ASSETS}wasteland.webp`);
-  void loadAsset("rise", `${ASSETS}source/rise.webp`);
-  void loadAsset("grip", `${ASSETS}source/grip.webp`);
-  void loadAsset("settled", `${ASSETS}settled.jpg`);
-
-  function trim() {
-    while (cache.size > CACHE_LIMIT) {
-      // Retain the visible frame; evict frames furthest from current scroll.
-      let candidate = -1, distance = -1;
-      for (const frame of cache.keys()) if (Math.abs(frame - wanted) > distance) {
-        candidate = frame; distance = Math.abs(frame - wanted);
-      }
-      cache.get(candidate)?.close(); cache.delete(candidate);
-    }
-  }
-  function pump() {
-    while (!disposed && requests.size < 3 && pending.length) {
-      const index = pending.shift()!;
-      if (cache.has(index) || requests.has(index) || failed.has(index)) continue;
-      const controller = new AbortController(); requests.set(index, controller);
-      fetch(`${ASSETS}frames/${String(index).padStart(3, "0")}.webp`, { signal: controller.signal })
-        .then(response => { if (!response.ok) throw new Error("Frame unavailable"); return response.blob(); })
-        .then(blob => createImageBitmap(blob))
-        .then(bitmap => {
-          if (disposed || controller.signal.aborted) { bitmap.close(); return; }
-          cache.set(index, bitmap); trim(); invalidate();
+  function pumpFetch() {
+    if (disposed) return;
+    const queue = Array.from({ length: FRAME_COUNT }, (_, i) => i)
+      .filter(i => !blobs.has(i) && !fetching.has(i) && !failed.has(i))
+      .sort(nearest);
+    while (fetching.size < CONCURRENCY && queue.length) {
+      const index = queue.shift()!;
+      const controller = new AbortController();
+      fetching.set(index, controller);
+      fetch(frameUrl(index), { signal: controller.signal })
+        .then(response => { if (!response.ok) throw new Error(`Frame ${index + 1} unavailable`); return response.blob(); })
+        .then(blob => {
+          if (disposed) return;
+          blobs.set(index, blob);
+          onProgress(blobs.size, FRAME_COUNT);
+          pumpDecode();
         })
-        .catch(() => { if (!controller.signal.aborted) failed.add(index); })
-        .finally(() => { requests.delete(index); pump(); });
+        .catch(() => {
+          if (controller.signal.aborted || disposed) return;
+          failed.add(index);
+          // A handful of missing frames just means a coarser scrub; most of them means there is no scene.
+          if (failed.size > FRAME_COUNT / 2) onError();
+        })
+        .finally(() => { fetching.delete(index); pumpFetch(); });
     }
-  }
-  function prepare(index: number) {
-    wanted = index;
-    pending = [index];
-    for (let i = 1; i <= 8; i++) {
-      if (index + i < FRAME_COUNT) pending.push(index + i);
-      if (index - i >= 0) pending.push(index - i);
-    }
-    for (const [frame, request] of requests) if (Math.abs(frame - index) > 20) request.abort();
-    pump();
   }
 
-  function fit(image: ImageBitmap, y = 0, zoom = 1) {
-    const scale = Math.max(width / WIDTH, height / HEIGHT) * zoom;
-    const dw = WIDTH * scale, dh = HEIGHT * scale;
-    ctx!.drawImage(image, (width - dw) / 2, (height - dh) / 2 + y, dw, dh);
+  /** Decode at display size where the browser allows it; fall back to full size where it does not. */
+  async function decode(blob: Blob, w: number, h: number) {
+    try {
+      return await createImageBitmap(blob, { resizeWidth: w, resizeHeight: h, resizeQuality: "high" });
+    } catch {
+      return createImageBitmap(blob);
+    }
   }
-  function drawFrame(index: number, zoom: number) {
-    const ready = cache.get(index);
-    if (ready) { fit(ready, 0, zoom); return; }
-    const pose = Math.max(0, Math.min(17, index));
-    const sheet = assets.get(pose < 9 ? "rise" : "grip");
-    if (!sheet) return;
-    const cell = pose % 9, col = cell % 3, row = Math.floor(cell / 3);
-    const left = Math.round(col * sheet.width / 3), top = Math.round(row * sheet.height / 3);
-    const sw = Math.round((col + 1) * sheet.width / 3) - left;
-    const sh = Math.round((row + 1) * sheet.height / 3) - top;
-    const scale = Math.max(width / WIDTH, height / HEIGHT) * zoom;
+
+  function pumpDecode() {
+    if (disposed || !decodeWidth || playhead < 0) return;
+    for (const [index, bitmap] of bitmaps) {
+      if (Math.abs(index - playhead) > WINDOW + 1) { bitmap.close(); bitmaps.delete(index); }
+    }
+    const wanted = [...blobs.keys()]
+      .filter(i => Math.abs(i - playhead) <= WINDOW && !bitmaps.has(i) && !decoding.has(i))
+      .sort(nearest);
+    for (const index of wanted.slice(0, Math.max(0, 2 - decoding.size))) {
+      decoding.add(index);
+      const w = decodeWidth, h = decodeHeight;
+      decode(blobs.get(index)!, w, h)
+        .then(bitmap => {
+          // Stale work — the stage resized or the playhead moved on while this decoded.
+          if (disposed || w !== decodeWidth || Math.abs(index - playhead) > WINDOW + 1) { bitmap.close(); return; }
+          bitmaps.get(index)?.close();
+          bitmaps.set(index, bitmap);
+          invalidate();
+        })
+        .catch(() => failed.add(index))
+        .finally(() => { decoding.delete(index); pumpDecode(); });
+    }
+  }
+
+  /** The exact frame if it is ready, otherwise the closest one that is. */
+  function closest(index: number) {
+    for (let d = 0; d < FRAME_COUNT; d++) {
+      const hit = bitmaps.get(index - d) ?? bitmaps.get(index + d);
+      if (hit) return hit;
+    }
+    return undefined;
+  }
+
+  function cover(image: ImageBitmap) {
+    const scale = Math.max(width / WIDTH, height / HEIGHT);
     const dw = WIDTH * scale, dh = HEIGHT * scale;
-    ctx!.drawImage(sheet, left + 4, top + 4, sw - 8, sh - 8, (width - dw) / 2, (height - dh) / 2, dw, dh);
+    context.drawImage(image, (width - dw) / 2, (height - dh) / 2, dw, dh);
   }
 
   function draw(progress: number, time: number, reduced = false) {
-    const p = clamp(progress), position = frameAt(p), index = Math.floor(position);
-    if (!reduced) prepare(index);
-    ctx!.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx!.fillStyle = "#020707"; ctx!.fillRect(0, 0, width, height);
-    if (reduced && assets.has("settled")) { fit(assets.get("settled")!); return; }
-    const land = phase(p, .02, .23), moon = phase(p, .23, .4);
-    const zoom = 1 + phase(p, .4, 1) * .026;
-    if (p < .4) {
-      const image = assets.get("land");
-      if (image) {
-        ctx!.globalAlpha = land;
-        fit(image, (1 - land) * height * .3);
-      }
-      ctx!.globalAlpha = moon;
-      drawFrame(0, 1);
-      ctx!.globalAlpha = 1;
-    } else {
-      drawFrame(index, zoom);
-      // Hold each clean pose, then briefly dissolve into its neighbor. No
-      // optical-flow distortion of finger anatomy or the eclipse silhouette.
-      const dissolve = phase(position - index, .58, 1);
-      if (dissolve > 0 && index < FRAME_COUNT - 1) {
-        ctx!.globalAlpha = dissolve; drawFrame(index + 1, zoom); ctx!.globalAlpha = 1;
-      }
+    const position = reduced ? FRAME_COUNT - 1 : frameAt(clamp(progress));
+    const index = Math.floor(position);
+    const next = Math.min(FRAME_COUNT - 1, index + 1);
+    if (index !== playhead) { playhead = index; pumpFetch(); pumpDecode(); }
+
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.fillStyle = "#020707";
+    context.fillRect(0, 0, width, height);
+
+    const base = closest(index);
+    if (base) cover(base);
+    // Adjacent frames of one continuous shot: a short blend removes the step
+    // between them without inventing motion. Only blend two real frames.
+    const mix = position - index;
+    const after = bitmaps.get(next);
+    if (mix > .01 && next !== index && after && bitmaps.has(index)) {
+      context.globalAlpha = mix;
+      cover(after);
+      context.globalAlpha = 1;
     }
-    // Atmosphere is intentionally restrained; photographic frames carry the scene.
-    const impact = phase(p, .87, .94) * (1 - phase(p, .95, 1));
-    for (let i = 0; i < 5; i++) {
-      const x = width * (.16 + i * .18 + Math.sin(time * .027 + i * 2) * .035);
-      const y = height * (.71 + Math.sin(i * 4 + time * .02) * .028);
-      const radius = width * (.13 + i * .008);
-      const fog = ctx!.createRadialGradient(x, y, 0, x, y, radius);
-      fog.addColorStop(0, `rgba(116,139,124,${(.018 + impact * .09) * Math.max(.08, land)})`);
-      fog.addColorStop(1, "rgba(70,94,82,0)");
-      ctx!.fillStyle = fog; ctx!.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-    }
+
+    if (reduced) return;
+    // Drifting ash. The photographs carry the atmosphere; this only keeps the still frames alive.
     for (let i = 0; i < 42; i++) {
       const x = ((i * .618033 + time * .0014) % 1) * width;
       const y = ((i * .381966 - time * .002 + 100) % 1) * height;
-      ctx!.fillStyle = `rgba(180,190,165,${(.04 + land * .13) * (.3 + (i % 5) / 5)})`;
-      ctx!.fillRect(x, y, i % 3 === 0 ? 1.2 : .7, .7);
+      context.fillStyle = `rgba(180,190,165,${.1 * (.3 + (i % 5) / 5)})`;
+      context.fillRect(x, y, i % 3 === 0 ? 1.2 : .7, .7);
     }
+  }
+
+  function resize(w: number, h: number) {
+    width = Math.max(1, w);
+    height = Math.max(1, h);
+    ratio = Math.min(devicePixelRatio || 1, 1.5);
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    // Decode no larger than the frame is drawn, and never above the source.
+    // Quantised, so small layout shifts do not throw away every decoded frame.
+    const scale = Math.max(width / WIDTH, height / HEIGHT) * ratio;
+    const target = Math.min(WIDTH, Math.ceil((WIDTH * scale) / 160) * 160);
+    if (target !== decodeWidth) {
+      decodeWidth = target;
+      decodeHeight = Math.round((target * HEIGHT) / WIDTH);
+      bitmaps.forEach(bitmap => bitmap.close());
+      bitmaps.clear();
+      pumpDecode();
+    }
+    invalidate();
   }
 
   return {
     draw,
-    resize(w: number, h: number) {
-      width = Math.max(1, w); height = Math.max(1, h);
-      ratio = Math.min(devicePixelRatio || 1, 1.5);
-      canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
-      invalidate();
-    },
+    resize,
     dispose() {
-      disposed = true; pending = []; assetController.abort();
-      requests.forEach(request => request.abort());
-      cache.forEach(bitmap => bitmap.close()); assets.forEach(bitmap => bitmap.close());
-      cache.clear(); assets.clear();
+      disposed = true;
+      fetching.forEach(request => request.abort());
+      bitmaps.forEach(bitmap => bitmap.close());
+      bitmaps.clear();
+      blobs.clear();
     },
   };
 }
