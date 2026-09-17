@@ -23,8 +23,12 @@ the Open Graph tags — set it to the real subdomain before deploying:
 NEXT_PUBLIC_SITE_URL=https://motion.thedarwin.co
 ```
 
-Everything else is static: `next build` prerenders all ten routes, so any
-static host or a Vercel project pointed at the subdomain will serve it.
+Everything else is static — `next build` prerenders every page — with one
+exception: `/api/trace`, the route the Guidelines Builder uses to read
+reference images with a vision model. It needs `OPENAI_API_KEY` (and optionally
+`OPENAI_MODEL`, default `gpt-4o`) set on the host. Without the key the route
+answers 501 and the builder falls back to tracing locally. So: any static host
+serves the site; a Vercel project with the key set serves the model too.
 
 ## Getting started
 
@@ -80,6 +84,50 @@ src/
     ├── prompts.ts              the prompt behind every motion, keyed by demo id
     └── site.ts                 brand name, tagline and the thedarwin.co origin
 ```
+
+## Guidelines Builder
+
+`/guidelines` opens on a dashboard: template cards with a live cover — the five
+built in and any you have saved — your client decks, and a card that turns
+reference images into a template. It builds a brand book per client from one
+of those starting points.
+A deck is a brand — six palette slots, extra swatches, three faces, an optional
+logo — and a list of 1600×900 pages. Pages are laid out against the palette
+*slots*, not literal colours, so changing a client's colour changes every page.
+Text blocks can carry `{brand}`, `{tagline}`, `{edition}` and `{year}`, which
+fill in from the brand.
+
+On a page: drag to move (it snaps to the page's edges and centre and to the
+other blocks), corners to resize, double-click text to edit it in place,
+shift-click to select several, then align or distribute them from the
+inspector. Drop an image on a slot, or anywhere on the page, and it is
+downscaled and stored with the deck. Undo covers a whole gesture.
+
+Type is a system, not a per-block choice: the brand carries a face and weight
+for H1, H2, H3 and body, and any text block with a role follows it across every
+page. Faces are the four the site ships or any Google Fonts family by name,
+loaded on demand.
+
+To replicate a reference — a screenshot of a page from another brand book —
+drop it on the dashboard's first card, or into the Decks panel of an open deck.
+With `OPENAI_API_KEY` set, `/api/trace` has a vision model read the page: every
+text block comes back with its actual words and a role, photographs and panels
+as boxes, swatches with their hex, and a palette that seeds the brand. Photos
+are cropped out of the reference into their slots so the page reads at once.
+Without a key the local tracer runs instead — layout only, placeholder text —
+and the builder says which happened. Either way the reference stays under the
+page to rebuild against and never prints. Save the deck as a template and it
+appears beside the built-in ones for the next client.
+
+Autosave is on by default and stamps the top bar with the time of the last
+save. Turn it off to work in memory and save by hand; the tab then warns
+before closing with unsaved changes.
+
+Decks live in `localStorage` and never leave the browser. Export is a JSON file
+— hand it to a colleague, who imports it — and the browser's own print-to-PDF,
+which prints every page at its native size using the same renderer the editor
+uses. The model is `src/components/guidelines/types.ts`; the starter decks are
+`templates.ts`.
 
 ## Pixel Studio
 

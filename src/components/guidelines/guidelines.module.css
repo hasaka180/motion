@@ -1,0 +1,34 @@
+/*
+ * The print sheet is portalled onto <body> so that, when printing, everything
+ * else on the page can be hidden and each slide becomes one landscape page at
+ * its native 1600×900 — the same renderer the editor uses, unscaled.
+ */
+.printRoot {
+  display: none;
+}
+
+.printPage {
+  width: 1600px;
+  height: 900px;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+}
+
+@media print {
+  @page {
+    size: 1600px 900px;
+    margin: 0;
+  }
+  :global(body) > *:not(.printRoot) {
+    display: none !important;
+  }
+  :global(html),
+  :global(body) {
+    background: #fff !important;
+    margin: 0;
+  }
+  .printRoot {
+    display: block;
+  }
+}
