@@ -26,10 +26,10 @@ NEXT_PUBLIC_SITE_URL=https://motion.thedarwin.co
 Everything else is static — `next build` prerenders every page — with one
 exception: `/api/trace`, the route the Guidelines Builder uses to read
 reference images with a vision model. It needs `OPENAI_API_KEY` (and optionally
-`OPENAI_MODEL`, default `gpt-4o`) set on the host. Without the key the route
+`OPENAI_MODEL`, default `gpt-5.6-sol`) set on the host. Without the key the route
 answers 501 and the importer shows a persistent error without saving a fake
 completed template. Reference generation requires a server deployment. Astra
-model overrides are excluded; the route falls back to `gpt-4o`.
+model overrides are excluded; the route falls back to `gpt-5.6-sol`.
 
 ## Getting started
 

@@ -3,9 +3,10 @@ import { FAMILIES, SECTION_BRIEFS, SECTION_ORDER } from "@/components/guidelines
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-// Explicitly exclude Astra, including deployments with a previously set override.
-const configuredModel = process.env.OPENAI_MODEL ?? "gpt-4o";
-const MODEL = /astra/i.test(configuredModel) ? "gpt-4o" : configuredModel;
+// Use the flagship tier directly below Astra and keep older Astra overrides from
+// silently selecting the higher-cost model.
+const configuredModel = process.env.OPENAI_MODEL ?? "gpt-5.6-sol";
+const MODEL = /astra/i.test(configuredModel) ? "gpt-5.6-sol" : configuredModel;
 const MAX_IMAGE_CHARS = 3_500_000;
 const SECTIONS = [...SECTION_ORDER, "other"];
 const HEX = { type: "string", pattern: "^#[0-9a-fA-F]{6}$" };
