@@ -126,7 +126,18 @@ export async function buildReferenceTemplate(files: File[], name: string, update
       brand: { name: brand.name, tagline: brand.tagline, palette: brand.palette, type: brand.type },
     };
     const result = await callTrace<AiPage>("generate", images, context);
-    if (result.section !== entry.section) throw new Error(`Expected ${SECTION_BRIEFS[entry.section][0]}, but received a different section. Retry to resume cached progress.`);
+    // The requested inventory slot is authoritative. Models occasionally
+    // classify a typography specimen as `specimen`, or a logo variants page as
+    // `wordmark`, even though they designed the requested content. Treat that
+    // as review metadata instead of aborting the entire multi-page import.
+    if (result.section !== entry.section) {
+      const reported = result.section;
+      result.section = entry.section;
+      result.warnings = [
+        ...(result.warnings ?? []),
+        `The model labelled this page “${reported}”; it was placed in the requested “${entry.section}” section. Review the content before export.`,
+      ];
+    }
     const { slide } = await materializePage(result, style);
     slide.provenance!.warnings.push("Added guidance is a draft for brand-owner review.");
     slides.push(slide); generated++;

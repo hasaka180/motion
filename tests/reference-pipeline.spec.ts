@@ -67,10 +67,17 @@ test("boxes retain tiny pages and tokenisation does not corrupt existing tokens"
 test("PDF imports every page, completes all sections, preserves thin rules and persists on reload", async ({ page }) => {
   const calls: { mode: string; images: string[]; context: { section: string } }[] = [];
   let read = 0;
+  let mismatchedGeneratedSection = false;
   await page.route("https://fonts.googleapis.com/**", route => route.fulfill({ contentType: "text/css", body: "" }));
   await page.route("**/api/trace", async route => {
     const body = route.request().postDataJSON(); calls.push(body);
-    const result = body.mode === "style" ? style : body.mode === "page" ? layout(read++ === 0 ? "cover" : "typography", read - 1) : layout(body.context.section);
+    const result = body.mode === "style"
+      ? style
+      : body.mode === "page"
+        ? layout(read++ === 0 ? "cover" : "typography", read - 1)
+        : !mismatchedGeneratedSection
+          ? (mismatchedGeneratedSection = true, layout("other"))
+          : layout(body.context.section);
     await route.fulfill({ json: result });
   });
   page.on("dialog", dialog => dialog.accept("North reference"));
@@ -83,6 +90,8 @@ test("PDF imports every page, completes all sections, preserves thin rules and p
   expect(deck.slides.filter(s => s.provenance?.kind === "reference").map(s => s.provenance?.source)).toEqual(["north.pdf · page 1", "north.pdf · page 2"]);
   expect(deck.slides[0].blocks[0].h).toBeLessThan(2);
   expect(deck.slides[0].blocks[1]).toMatchObject({ font: "serif", weight: 400, lineHeight: 1.05, tracking: -.02 });
+  expect(deck.slides.find(s => s.provenance?.kind === "generated")?.provenance?.warnings)
+    .toContainEqual(expect.stringContaining("placed in the requested"));
   expect(calls.filter(c => c.mode === "pages")).toHaveLength(0);
   expect(calls.find(c => c.mode === "style")!.images).toHaveLength(2);
   expect(calls.filter(c => c.mode === "generate")).toHaveLength(22);
