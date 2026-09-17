@@ -152,6 +152,29 @@ and tests real PDF rendering, source preservation, completion, typography,
 missing-key errors and persistence without spending API credits. It does not
 measure live-model reconstruction accuracy.
 
+### All Things Go reference template
+
+The Guidelines dashboard includes **All Things Go**, a hand-built, 24-page
+template based on the two supplied festival contact sheets. It recreates the
+visible overview, lineup, community collage, audience dashboard, digital reach,
+press clippings, artist quotes, partner grid and campaign treatments, then adds
+matching brand guidance and social layouts. Partially visible source pages are
+interpreted, not claimed as exact transcriptions. Sample metrics, artist names
+and editorial copy are editable examples.
+
+Each photo has a local default placeholder. Click an image or icon, including
+photos inside social layouts, to browse a replacement. Drag moves it;
+Shift-click selects it without opening the browser. The inspector includes
+image crop positioning, monochrome treatment, nine vector icons, rotation and
+opacity. Icon uploads can be restored to a default vector in the inspector.
+
+Page backgrounds and shapes support mesh, linear, radial and edge-glow
+gradients, three editable colour stops, direction and grain. Changes persist
+with the deck and its JSON export. Social square posts and 9:16 story layouts
+can also be added using the page controls. All are editable blocks on the
+existing 1600×900 document canvas. The condensed and script fonts are bundled
+locally with their OFL licences. This template requires no API generation.
+
 ## Pixel Studio
 
 `/studio` is the one page here that is a tool rather than a demo. Drop in a

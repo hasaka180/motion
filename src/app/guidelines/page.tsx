@@ -16,7 +16,7 @@ export default function Page() {
         />
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Guidelines Builder</h1>
         <p className="mt-3 max-w-2xl text-balance text-ink-400">
-          A brand book for each client, started from a template — five built in, or one
+          A brand book for each client, started from a template — ready-made, or one
           traced from a reference. Every page paints from the client&apos;s palette slots,
           so changing a colour changes the whole deck. Drop photography straight onto a
           page, drag anything into place — it snaps to the page and to its neighbours —

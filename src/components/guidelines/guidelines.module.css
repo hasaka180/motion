@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "Festival Condensed";
+  src: url("/images/guidelines/bebas-neue.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Festival Script";
+  src: url("/images/guidelines/caveat.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
  * The print sheet is portalled onto <body> so that, when printing, everything
  * else on the page can be hidden and each slide becomes one landscape page at
@@ -8,6 +24,8 @@
 }
 
 .printPage {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
   width: 1600px;
   height: 900px;
   overflow: hidden;

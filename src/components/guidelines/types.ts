@@ -29,7 +29,7 @@ export type Brand = {
 };
 
 /** The four faces the site ships. */
-export type FontKey = "sans" | "serif" | "mono" | "display";
+export type FontKey = "sans" | "serif" | "mono" | "display" | "condensed" | "script";
 /** A shipped face, or any Google Fonts family by name, loaded at runtime. */
 export type FontFace = FontKey | (string & {});
 export type TypeRole = "h1" | "h2" | "h3" | "body";
@@ -43,7 +43,13 @@ export type TypeStyle = {
 /** A colour is either a palette slot or a literal. */
 export type Paint = TokenKey | `#${string}`;
 
-type Base = { id: string; x: number; y: number; w: number; h: number; rotation?: number; locked?: boolean };
+type Base = { id: string; x: number; y: number; w: number; h: number; rotation?: number; opacity?: number; locked?: boolean };
+
+export type GradientStyle = {
+  kind: "linear" | "radial" | "mesh" | "edge";
+  colors: [string, string, string];
+  angle: number;
+};
 
 export type TextBlock = Base & {
   kind: "text";
@@ -72,6 +78,20 @@ export type ImageBlock = Base & {
   label: string;
   /** Tint drawn under the image while the slot is empty. */
   tint: Paint;
+  grayscale?: boolean;
+  focalX?: number;
+  focalY?: number;
+};
+
+export type IconName = "sparkle" | "star" | "arrow" | "heart" | "quote" | "instagram" | "music" | "globe" | "ticket";
+export type IconBlock = Base & {
+  kind: "icon";
+  icon: IconName;
+  color: Paint;
+  strokeWidth: number;
+  /** An optional uploaded replacement for the default vector. */
+  src?: string;
+  label: string;
 };
 
 export type RectBlock = Base & {
@@ -80,6 +100,8 @@ export type RectBlock = Base & {
   radius: number;
   /** Optional CSS gradient; overrides fill when present. */
   gradient?: string;
+  gradientStyle?: GradientStyle;
+  grain?: number;
 };
 
 export type SwatchBlock = Base & {
@@ -97,13 +119,15 @@ export type LogoBlock = Base & {
   size: number;
 };
 
-export type Block = TextBlock | ImageBlock | RectBlock | SwatchBlock | LogoBlock;
+export type Block = TextBlock | ImageBlock | RectBlock | SwatchBlock | LogoBlock | IconBlock;
 
 export type Slide = {
   id: string;
   name: string;
   bg: Paint;
   gradient?: string;
+  gradientStyle?: GradientStyle;
+  grain?: number;
   blocks: Block[];
   provenance?: { kind: "reference" | "generated"; section: string; source?: string; warnings: string[] };
   /** A traced reference image, drawn under the page in the editor only. */
@@ -162,6 +186,8 @@ export const FONT_STACK: Record<FontKey, string> = {
   serif: "var(--font-serif)",
   mono: "var(--font-mono)",
   display: "var(--font-display)",
+  condensed: '"Festival Condensed", Impact, sans-serif',
+  script: '"Festival Script", cursive',
 };
 
 export const isShippedFace = (face: FontFace): face is FontKey => face in FONT_STACK;

@@ -11,6 +11,7 @@ import { LAYOUTS, TEMPLATES } from "./templates";
 import { buildReferenceTemplate, type ReferenceProgress } from "./referencePipeline";
 import { ReferenceReport, ReferenceStatus } from "./ReferenceReport";
 import { googleFontUrl } from "./referenceSpec";
+import { FESTIVAL_IMAGE } from "./festivalTemplate";
 import { SLIDE_H, SLIDE_W, isShippedFace, uid, type Brand, type Project, type TokenKey, type TypeRole, type TypeStyle } from "./types";
 import styles from "./guidelines.module.css";
 
@@ -97,10 +98,13 @@ export function GuidelinesBuilder({ initialState }: { initialState: State }) {
   // Print only once the print sheet is in the DOM.
   useEffect(() => {
     if (!printing) return;
+    let cancelled = false;
     const after = () => setPrinting(false);
     window.addEventListener("afterprint", after);
-    const t = setTimeout(() => window.print(), 80);
-    return () => { clearTimeout(t); window.removeEventListener("afterprint", after); };
+    const images = [...document.querySelectorAll<HTMLImageElement>(`.${styles.printRoot} img`)];
+    void Promise.all([document.fonts.ready, ...images.map(image => image.decode().catch(() => {}))])
+      .then(() => { if (!cancelled) window.print(); });
+    return () => { cancelled = true; window.removeEventListener("afterprint", after); };
   }, [printing]);
 
   const brand = (patch: Partial<Brand>) => dispatch({ type: "brand", patch });
@@ -397,7 +401,8 @@ export function GuidelinesBuilder({ initialState }: { initialState: State }) {
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 font-mono text-[10px] uppercase tracking-[.2em] text-ink-500">Add</span>
             <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("t"), kind: "text", x: 80, y: 120, w: 700, h: 120, text: "New text", font: "sans", size: 40, weight: 500, align: "left", valign: "top", lineHeight: 1.15, tracking: -.01, color: "ink" } })}>Text</button>
-            <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("i"), kind: "image", x: 520, y: 260, w: 560, h: 380, fit: "cover", radius: 0, label: "Image", tint: "surface" } })}>Image slot</button>
+            <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("i"), kind: "image", x: 520, y: 260, w: 560, h: 380, src: FESTIVAL_IMAGE, fit: "cover", radius: 0, label: "Image", tint: "surface" } })}>Image slot</button>
+            <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("i"), kind: "icon", x: 730, y: 380, w: 140, h: 140, icon: "sparkle", color: "ink", strokeWidth: 1.4, label: "sparkle icon" } })}>Icon</button>
             <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("r"), kind: "rect", x: 600, y: 300, w: 400, h: 300, fill: "primary", radius: 0 } })}>Shape</button>
             <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("s"), kind: "swatch", x: 640, y: 340, w: 320, h: 220, token: "primary", radius: 0, caption: "inside" } })}>Swatch</button>
             <button className={btn} onClick={() => dispatch({ type: "add", block: { id: uid("l"), kind: "logo", x: 500, y: 350, w: 600, h: 200, color: "ink", size: 120 } })}>Logo</button>

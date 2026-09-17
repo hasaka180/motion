@@ -39,6 +39,9 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
   const [guides, setGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const gesture = useRef<Gesture | null>(null);
   const pendingImage = useRef<string | null>(null);
+  const dragged = useRef(false);
+  const activeSlide = useRef(slide.id);
+  useEffect(() => { activeSlide.current = slide.id; }, [slide.id]);
 
   // Fit the slide to the pane.
   useEffect(() => {
@@ -78,12 +81,15 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
   const beginGesture = (g: Gesture) => {
     release.current?.();
     gesture.current = g;
-    dispatch({ type: "snapshot" });
+    dragged.current = false;
     const blocks = slide.blocks;
 
     const move = (e: PointerEvent) => {
       const p = slideUnits(e);
       const dx = p.x - g.start.x, dy = p.y - g.start.y;
+      if (!dragged.current && Math.hypot(dx * scale, dy * scale) < 4) return;
+      if (!dragged.current) dispatch({ type: "snapshot" });
+      dragged.current = true;
 
       if (g.kind === "move") {
         const ids = Object.keys(g.origin);
@@ -139,6 +145,7 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       release.current = null;
       gesture.current = null;
       setGuides({ x: [], y: [] });
@@ -146,11 +153,13 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
     release.current = up;
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   const onBlockPointerDown = (e: ReactPointerEvent, block: Block) => {
     if (editing) { if (editing !== block.id) setEditing(null); else return; }
     if (e.button !== 0) return;
+    dragged.current = false;
     e.stopPropagation();
     let ids = selection;
     if (e.shiftKey) {
@@ -176,10 +185,12 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
 
   // ------------------------------------------------------------ images
   const placeImage = async (files: FileList, targetId: string | null, at?: { x: number; y: number }) => {
+    const targetSlide = slide.id;
     const file = Array.from(files).find((f) => f.type.startsWith("image/"));
     if (!file) { onWarn("That wasn't an image."); return; }
     try {
       const src = await shrinkImage(file);
+      if (activeSlide.current !== targetSlide) { onWarn("Page changed before the image loaded. Select the image again to replace it."); return; }
       if (targetId) {
         dispatch({ type: "patch", ids: [targetId], patch: { src } });
       } else {
@@ -234,7 +245,7 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
       style={{ height: Math.round(SLIDE_H * scale) + 2 }}
     >
       <input
-        ref={fileRef} type="file" accept="image/*" hidden
+        ref={fileRef} type="file" accept="image/*" aria-label="Replace selected image or icon" hidden
         onChange={(e) => { const id = pendingImage.current; pendingImage.current = null; if (e.target.files?.length) void placeImage(e.target.files, id); e.target.value = ""; }}
       />
 
@@ -250,7 +261,7 @@ export function Canvas({ slide, brand, selection, dispatch, onWarn }: Props) {
           onBlockDoubleClick={(b) => { if (b.kind === "text" && !b.locked) { dispatch({ type: "select", ids: [b.id] }); setEditing(b.id); } }}
           onTextCommit={(id, text) => { dispatch({ type: "patch", ids: [id], patch: { text } }); setEditing(null); }}
           onImageDrop={(id, files) => void placeImage(files, id)}
-          onImageClick={(id) => { pendingImage.current = id; fileRef.current?.click(); }}
+          onImageClick={(id) => { if (dragged.current) { dragged.current = false; return; } pendingImage.current = id; fileRef.current?.click(); }}
         />
       </div>
 

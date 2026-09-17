@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { GradientEditor } from "./GradientEditor";
+import { ICON_NAMES, IconView } from "./IconView";
 import type { Action } from "./store";
 import { isShippedFace, type Block, type Brand, type FontFace, type Paint, type Slide, type TextBlock, type TokenKey, type TypeRole } from "./types";
 
@@ -55,6 +57,8 @@ export function FaceField({ value, onChange }: { value: FontFace; onChange: (f: 
         <option value="serif">Instrument Serif</option>
         <option value="mono">Geist Mono</option>
         <option value="display">Archivo Black</option>
+        <option value="condensed">Bebas Neue</option>
+        <option value="script">Caveat</option>
         <option value="google">Google font…</option>
       </select>
       {custom && (
@@ -136,8 +140,8 @@ export function Inspector({ slide, brand, selection, dispatch }: Props) {
         <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-ink-500">Page</h3>
         <div className="flex flex-col gap-2">
           <Field label="Name"><input value={slide.name} onChange={(e) => dispatch({ type: "slidePatch", patch: { name: e.target.value } })} className={`${inputCls} w-40`} /></Field>
-          <Field label="Background"><PaintPicker value={slide.bg} brand={brand} onChange={(bg) => dispatch({ type: "slidePatch", patch: { bg, gradient: undefined } })} /></Field>
-          <Field label="Gradient"><input placeholder="linear-gradient(…)" value={slide.gradient ?? ""} onChange={(e) => dispatch({ type: "slidePatch", patch: { gradient: e.target.value || undefined } })} className={`${inputCls} w-40`} /></Field>
+          <Field label="Background"><PaintPicker value={slide.bg} brand={brand} onChange={(bg) => dispatch({ type: "slidePatch", patch: { bg, gradient: undefined, gradientStyle: undefined } })} /></Field>
+          <GradientEditor value={slide.gradientStyle} legacy={slide.gradient} grain={slide.grain} onChange={patch => dispatch({ type: "slidePatch", patch })} />
           {slide.reference && (
             <>
               <Field label="Reference">
@@ -200,6 +204,8 @@ export function Inspector({ slide, brand, selection, dispatch }: Props) {
                 <Field label="Y"><Num value={one.y} onChange={(y) => patch({ y })} /></Field>
                 <Field label="W"><Num value={one.w} onChange={(w) => patch({ w: Math.max(16, w) })} /></Field>
                 <Field label="H"><Num value={one.h} onChange={(h) => patch({ h: Math.max(16, h) })} /></Field>
+                <Field label="Rotate"><Num value={one.rotation ?? 0} onChange={(rotation) => patch({ rotation })} /></Field>
+                <Field label="Opacity"><Num value={(one.opacity ?? 1) * 100} onChange={(value) => patch({ opacity: Math.max(0, Math.min(1, value / 100)) })} /></Field>
               </div>
             </section>
           )}
@@ -263,6 +269,10 @@ export function Inspector({ slide, brand, selection, dispatch }: Props) {
                 <Field label="Radius"><Num value={one.radius} onChange={(radius) => patch({ radius: Math.max(0, radius) })} /></Field>
                 <Field label="Empty tint"><PaintPicker value={one.tint} brand={brand} onChange={(tint) => patch({ tint })} /></Field>
                 <Field label="Label"><input value={one.label} onChange={(e) => patch({ label: e.target.value })} className={`${inputCls} w-40`} /></Field>
+                <Field label="Crop X"><Num value={one.focalX ?? 50} onChange={(focalX) => patch({ focalX: Math.max(0, Math.min(100, focalX)) })} /></Field>
+                <Field label="Crop Y"><Num value={one.focalY ?? 50} onChange={(focalY) => patch({ focalY: Math.max(0, Math.min(100, focalY)) })} /></Field>
+                <Btn title="Toggle black and white" active={one.grayscale} onClick={() => patch({ grayscale: !one.grayscale })}>Black & white</Btn>
+                <p className="text-[11px] text-ink-500">Click the image on the page to browse a replacement. Shift-click selects it without opening the browser.</p>
                 {one.src && <Btn title="Remove the picture, keep the slot" onClick={() => patch({ src: undefined })}>Clear image</Btn>}
               </div>
             </section>
@@ -272,12 +282,24 @@ export function Inspector({ slide, brand, selection, dispatch }: Props) {
             <section>
               <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-ink-500">Shape</h3>
               <div className="flex flex-col gap-2">
-                <Field label="Fill"><PaintPicker value={one.fill} brand={brand} onChange={(fill) => patch({ fill, gradient: undefined })} /></Field>
-                <Field label="Gradient"><input placeholder="linear-gradient(…)" value={one.gradient ?? ""} onChange={(e) => patch({ gradient: e.target.value || undefined })} className={`${inputCls} w-40`} /></Field>
+                <Field label="Fill"><PaintPicker value={one.fill} brand={brand} onChange={(fill) => patch({ fill, gradient: undefined, gradientStyle: undefined })} /></Field>
+                <GradientEditor value={one.gradientStyle} legacy={one.gradient} grain={one.grain} onChange={patch} />
                 <Field label="Radius"><Num value={one.radius} onChange={(radius) => patch({ radius: Math.max(0, radius) })} /></Field>
               </div>
             </section>
           )}
+
+          {one?.kind === "icon" && <section>
+            <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-ink-500">Icon</h3>
+            <div className="grid grid-cols-5 gap-2">
+              {ICON_NAMES.map(icon => <button type="button" key={icon} title={icon} aria-label={`Use ${icon} icon`} className="size-8 rounded border border-ink-700 p-1 text-ink-200" onClick={() => patch({ icon, src: undefined })}><IconView name={icon} /></button>)}
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              <Field label="Colour"><PaintPicker value={one.color} brand={brand} onChange={color => patch({ color })} /></Field>
+              <Field label="Stroke"><Num value={one.strokeWidth} step={.2} onChange={strokeWidth => patch({ strokeWidth: Math.max(.2, strokeWidth) })} /></Field>
+              <p className="text-[11px] text-ink-500">Click the icon on the page to upload a replacement. Choose a symbol here to restore its default vector.</p>
+            </div>
+          </section>}
 
           {one?.kind === "swatch" && (
             <section>

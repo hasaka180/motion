@@ -1,6 +1,8 @@
 "use client";
 
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { GRAIN, gradientCss } from "./gradients";
+import { IconView } from "./IconView";
 import {
   FONT_STACK,
   SLIDE_H,
@@ -37,6 +39,7 @@ type Props = {
 
 const box = (b: Block): CSSProperties => ({
   position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h, transform: b.rotation ? `rotate(${b.rotation}deg)` : undefined,
+  opacity: b.opacity ?? 1,
 });
 
 export function SlideView({
@@ -53,10 +56,11 @@ export function SlideView({
       data-slide
       style={{
         position: "relative", width: SLIDE_W, height: SLIDE_H, overflow: "hidden",
-        background: slide.gradient ?? resolvePaint(slide.bg, brand),
+        background: slide.gradientStyle ? gradientCss(slide.gradientStyle) : slide.gradient ?? resolvePaint(slide.bg, brand),
         fontFamily: fontStack(brand.type.body.face),
       }}
     >
+      {!!slide.grain && <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: GRAIN, opacity: slide.grain, mixBlendMode: "soft-light", pointerEvents: "none" }} />}
       {editable && slide.reference?.visible && slide.reference.src && (
         // eslint-disable-next-line @next/next/no-img-element -- the traced reference, editor-only
         <img
@@ -74,7 +78,9 @@ export function SlideView({
         };
 
         if (b.kind === "rect") {
-          return <div key={b.id} {...common} style={{ ...box(b), background: b.gradient ?? resolvePaint(b.fill, brand), borderRadius: b.radius }} />;
+          return <div key={b.id} {...common} style={{ ...box(b), background: b.gradientStyle ? gradientCss(b.gradientStyle) : b.gradient ?? resolvePaint(b.fill, brand), borderRadius: b.radius, overflow: "hidden", pointerEvents: b.locked ? "none" : undefined }}>
+            {!!b.grain && <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: GRAIN, opacity: b.grain, mixBlendMode: "soft-light", pointerEvents: "none" }} />}
+          </div>;
         }
 
         if (b.kind === "swatch") {
@@ -113,25 +119,32 @@ export function SlideView({
           );
         }
 
-        if (b.kind === "image") {
-          const tint = resolvePaint(b.tint, brand);
+        if (b.kind === "image" || b.kind === "icon") {
+          const tint = b.kind === "image" ? resolvePaint(b.tint, brand) : "transparent";
+          const replaceable = editable && !b.locked && !!onImageClick;
           return (
             <div
               key={b.id}
               {...common}
-              onClick={editable && !b.src && onImageClick ? () => onImageClick(b.id) : undefined}
+              role={replaceable ? "button" : undefined}
+              tabIndex={replaceable ? 0 : undefined}
+              aria-label={replaceable ? `Replace ${b.label}` : undefined}
+              title={replaceable ? "Click to browse a replacement · drag to move · Shift-click to select" : undefined}
+              onClick={replaceable ? (e) => { e.stopPropagation(); if (!e.shiftKey) onImageClick?.(b.id); } : undefined}
+              onKeyDown={replaceable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onImageClick?.(b.id); } } : undefined}
               onDragOver={editable ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } : undefined}
-              onDrop={editable && onImageDrop ? (e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files.length) onImageDrop(b.id, e.dataTransfer.files); } : undefined}
+              onDrop={editable && !b.locked && onImageDrop ? (e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer.files.length) onImageDrop(b.id, e.dataTransfer.files); } : undefined}
               style={{
-                ...box(b), overflow: "hidden", borderRadius: b.radius,
+                ...box(b), overflow: "hidden", borderRadius: b.kind === "image" ? b.radius : 0,
                 background: b.src ? "transparent" : tint,
-                cursor: editable && !b.src ? "copy" : undefined,
+                color: b.kind === "icon" ? resolvePaint(b.color, brand) : undefined,
+                cursor: replaceable ? "pointer" : undefined,
               }}
             >
               {b.src ? (
                 // eslint-disable-next-line @next/next/no-img-element -- uploaded data URL drawn at slide scale
-                <img src={b.src} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: b.fit, display: "block" }} />
-              ) : editable ? (
+                <img src={b.src} alt={b.label} draggable={false} style={{ width: "100%", height: "100%", objectFit: b.kind === "image" ? b.fit : "contain", objectPosition: b.kind === "image" ? `${b.focalX ?? 50}% ${b.focalY ?? 50}%` : undefined, filter: b.kind === "image" && b.grayscale ? "grayscale(1)" : undefined, display: "block" }} />
+              ) : b.kind === "icon" ? <IconView name={b.icon} strokeWidth={b.strokeWidth} /> : editable ? (
                 <div style={{
                   position: "absolute", inset: 8, border: "2px dashed rgba(127,127,127,.55)", borderRadius: Math.max(0, b.radius - 8),
                   display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6,

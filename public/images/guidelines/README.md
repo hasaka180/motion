@@ -14,3 +14,12 @@ No random-image service or external image request is needed at render time.
 | objects.jpg | Objects | https://images.unsplash.com/photo-1490312278390-ab64016e0aa9 |
 
 Source licence: https://unsplash.com/license
+
+`festival-placeholder.svg` is a local vector placeholder drawn for the editable
+festival template. Its colour field is intentionally neutral artwork, not a
+photograph extracted from the user's references.
+
+The festival typography uses [Bebas Neue](https://github.com/google/fonts/tree/main/ofl/bebasneue)
+and [Caveat](https://github.com/google/fonts/tree/main/ofl/caveat) from Google Fonts.
+The font files and their accompanying `*-OFL.txt` licences are included here.
+Instrument Serif and Geist Mono are already provided by the application.

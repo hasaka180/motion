@@ -45,7 +45,7 @@ export type Action =
   | { type: "slideRemove"; index: number }
   | { type: "slideMove"; from: number; to: number }
   | { type: "slideDuplicate"; index: number }
-  | { type: "slidePatch"; patch: Partial<Pick<Slide, "name" | "bg" | "gradient">> }
+  | { type: "slidePatch"; patch: Partial<Pick<Slide, "name" | "bg" | "gradient" | "gradientStyle" | "grain">> }
   | { type: "slideReference"; patch: Partial<NonNullable<Slide["reference"]>> | null }
   | { type: "saveTemplate"; name: string }
   | { type: "deleteTemplate"; id: string }

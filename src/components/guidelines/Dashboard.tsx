@@ -8,7 +8,7 @@ import { SLIDE_H, SLIDE_W, type Brand, type Slide } from "./types";
 
 /**
  * Where the builder opens: everything you can start from, as cards with a
- * live cover. Templates — the five built in and any you have saved — start a
+ * live cover. Built-in templates and any you have saved start a
  * new client deck; your decks reopen; and references become a template of
  * their own, traced page by page.
  */

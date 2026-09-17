@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" fill="none">
+  <defs>
+    <linearGradient id="a" x1="100" y1="0" x2="850" y2="1000" gradientUnits="userSpaceOnUse"><stop stop-color="#b6a7e8"/><stop offset=".48" stop-color="#4c42a0"/><stop offset="1" stop-color="#111124"/></linearGradient>
+    <radialGradient id="b"><stop stop-color="#f7acb2" stop-opacity=".9"/><stop offset="1" stop-color="#f7acb2" stop-opacity="0"/></radialGradient>
+    <radialGradient id="c"><stop stop-color="#cdffa8" stop-opacity=".6"/><stop offset="1" stop-color="#cdffa8" stop-opacity="0"/></radialGradient>
+    <filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+  </defs>
+  <path fill="url(#a)" d="M0 0h1000v1000H0z"/>
+  <ellipse cx="180" cy="250" rx="700" ry="600" fill="url(#b)"/>
+  <ellipse cx="1000" cy="920" rx="850" ry="700" fill="url(#c)"/>
+  <path stroke="#f8f0e8" stroke-opacity=".15" d="M-100 1000 1000-100M-200 880 880-200M100 1100 1100 100"/>
+  <path fill="#999" filter="url(#n)" opacity=".1" d="M0 0h1000v1000H0z"/>
+  <g stroke="#f8f0e8" stroke-width="3" opacity=".65"><rect x="452" y="440" width="96" height="76" rx="4"/><circle cx="478" cy="463" r="7"/><path d="m456 508 24-24 17 14 21-27 26 37"/></g>
+  <text x="500" y="554" fill="#f8f0e8" opacity=".65" text-anchor="middle" font-family="monospace" font-size="13" letter-spacing="4">YOUR IMAGE</text>
+</svg>

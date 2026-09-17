@@ -150,11 +150,11 @@ export async function buildReferenceTemplate(files: File[], name: string, update
 
 /** Browser-measured overflow check after fonts load. Warnings remain attached to the page. */
 async function checkTypography(slides: Slide[], brand: Brand) {
-  const { fontStack, resolveText, textStyle } = await import("./types");
+  const { fontStack, resolveText, textStyle, isShippedFace } = await import("./types");
   const { googleFontUrl } = await import("./referenceSpec");
   const families = new Set(slides.flatMap(s => s.blocks.flatMap(b => b.kind === "text" ? [b.font] : [])));
   const loaded = await Promise.all([...families].map(async family => {
-    if (["sans", "serif", "mono", "display"].includes(family)) return true;
+    if (isShippedFace(family)) return true;
     const link = document.createElement("link"); link.rel = "stylesheet"; link.href = googleFontUrl(family);
     const success = await new Promise<boolean>(resolve => {
       const timer = setTimeout(() => resolve(false), 8000);

@@ -1,3 +1,4 @@
+import { FESTIVAL_TEMPLATE, festivalSocialFeed, festivalSocialStories } from "./festivalTemplate";
 import {
   SLIDE_H,
   SLIDE_W,
@@ -262,6 +263,7 @@ const palette = (
 });
 
 export const TEMPLATES: Template[] = [
+  FESTIVAL_TEMPLATE,
   {
     id: "mold",
     name: "Mold",
@@ -419,6 +421,8 @@ export const TEMPLATES: Template[] = [
 
 /** Blank pages a client can add to any deck. */
 export const LAYOUTS: { id: string; name: string; make: () => Slide }[] = [
+  { id: "social-feed", name: "Social posts", make: festivalSocialFeed },
+  { id: "social-stories", name: "Stories", make: festivalSocialStories },
   { id: "blank", name: "Blank", make: () => slide("Blank", "paper", []) },
   { id: "title", name: "Title", make: () => slide("Title", "paper", [
     text(M, SLIDE_H - 100 - 240, 1200, 240, "Section\nTitle", { role: "h1", font: "sans", size: 120, weight: 500, valign: "bottom", lineHeight: .95, tracking: -.03 }),
