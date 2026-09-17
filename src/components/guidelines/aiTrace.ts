@@ -48,8 +48,13 @@ function loadImage(src: string) {
   });
 }
 
-/** Ask the server to read one page. Null means no key is configured. */
-export async function traceWithAI(src: string): Promise<{ slide: Slide; palette: string[]; slots: Record<TokenKey, string> | null }> {
+/**
+ * Ask the server to read one page. `swatches` says how many colour tiles the
+ * page showed — a colour page states the brand's palette outright, where a
+ * cover only shows its own two colours, so the caller uses it to decide which
+ * page's palette to trust.
+ */
+export async function traceWithAI(src: string): Promise<{ slide: Slide; palette: string[]; slots: Record<TokenKey, string> | null; swatches: number }> {
   const res = await fetch("/api/trace", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -127,5 +132,6 @@ export async function traceWithAI(src: string): Promise<{ slide: Slide; palette:
     id: uid("p"), name: typeof body.name === "string" && body.name.trim() ? body.name.trim().slice(0, 60) : "Traced page",
     bg, blocks, reference: { src, opacity: 0.25, visible: false },
   };
-  return { slide, palette, slots };
+  const swatches = (Array.isArray(body.blocks) ? body.blocks : []).filter((b) => b?.kind === "swatch").length;
+  return { slide, palette, slots, swatches };
 }

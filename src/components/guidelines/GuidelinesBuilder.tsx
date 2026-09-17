@@ -141,6 +141,8 @@ export function GuidelinesBuilder() {
     const pages: Slide[] = [];
     const colours: string[] = [];
     let slots: Record<TokenKey, string> | null = null;
+    // The palette comes from the page that states one — most swatches wins.
+    let slotsScore = -1;
     let usedModel = false;
     for (const [i, file] of images.entries()) {
       const src = await shrinkImage(file, 1600);
@@ -148,7 +150,9 @@ export function GuidelinesBuilder() {
       if (tracer === "ai") {
         try {
           const ai = await traceWithAI(src);
-          result = ai; slots = slots ?? ai.slots; usedModel = true;
+          result = ai;
+          if (ai.slots && ai.swatches > slotsScore) { slots = ai.slots; slotsScore = ai.swatches; }
+          usedModel = true;
         } catch (err) {
           if (!(err instanceof TraceUnavailable)) throw err;
           // No key on this deployment: fall back for this and every later page.
