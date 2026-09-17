@@ -24,8 +24,8 @@ export default function Page() {
         </p>
         <p className="mt-4 font-mono text-xs text-ink-600">
           decks live in this browser only — export JSON to move one, print to PDF to send
-          one · references are read by a vision model when the host has a key, and traced
-          locally when it doesn&apos;t
+          one · import a reference PDF or page images to build an editable template with
+          matching layouts, type and missing sections
         </p>
       </header>
 

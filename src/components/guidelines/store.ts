@@ -1,3 +1,4 @@
+import { writeSavedDocuments } from "./persistence";
 import { TEMPLATES } from "./templates";
 import { DEFAULT_TYPE, uid, type Block, type Brand, type CustomTemplate, type Project, type Slide } from "./types";
 
@@ -87,10 +88,10 @@ function migrateBrand(brand: Brand & { fonts?: unknown }): Brand {
   return { ...rest, type: rest.type ?? DEFAULT_TYPE, extras: rest.extras ?? [] };
 }
 
-export function init(): State {
+export function init(savedDocuments?: string): State {
   const empty = { slide: 0, selection: [], past: [], future: [] };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = savedDocuments ?? localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as { projects: Project[]; currentId: string; customTemplates?: CustomTemplate[] };
       if (saved.projects?.length) {
@@ -110,14 +111,10 @@ export function init(): State {
 }
 
 export function persist(state: State, onFail: (message: string) => void, onSaved?: (at: number) => void) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      projects: state.projects, currentId: state.currentId, customTemplates: state.customTemplates,
-    }));
-    onSaved?.(Date.now());
-  } catch {
-    onFail("Storage is full — export this deck before adding more images.");
-  }
+  const at = Date.now();
+  void writeSavedDocuments({ projects: state.projects, currentId: state.currentId, customTemplates: state.customTemplates })
+    .then(() => onSaved?.(at))
+    .catch(() => onFail("Could not save this deck in browser storage. Export JSON to keep a backup."));
 }
 
 /** Replace the current project, recording the previous one for undo. */

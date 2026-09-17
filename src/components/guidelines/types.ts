@@ -43,7 +43,7 @@ export type TypeStyle = {
 /** A colour is either a palette slot or a literal. */
 export type Paint = TokenKey | `#${string}`;
 
-type Base = { id: string; x: number; y: number; w: number; h: number; locked?: boolean };
+type Base = { id: string; x: number; y: number; w: number; h: number; rotation?: number; locked?: boolean };
 
 export type TextBlock = Base & {
   kind: "text";
@@ -105,6 +105,7 @@ export type Slide = {
   bg: Paint;
   gradient?: string;
   blocks: Block[];
+  provenance?: { kind: "reference" | "generated"; section: string; source?: string; warnings: string[] };
   /** A traced reference image, drawn under the page in the editor only. */
   reference?: { src: string; opacity: number; visible: boolean };
 };

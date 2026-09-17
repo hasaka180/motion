@@ -3,7 +3,7 @@ import {
   SLIDE_W,
   uid,
   type Brand,
-  type FontKey,
+  type FontFace,
   type ImageBlock,
   type LogoBlock,
   type Paint,
@@ -47,11 +47,11 @@ const slide = (name: string, bg: Paint, blocks: Slide["blocks"], gradient?: stri
 
 /** The choices that make one template read differently from another. */
 type Style = {
-  head: FontKey;
+  head: FontFace;
   headWeight: TextBlock["weight"];
   upper: boolean;
   tracking: number;
-  label: FontKey;
+  label: FontFace;
   /** Colour used for the small running labels on dark pages. */
   labelColor: Paint;
 };
@@ -220,6 +220,24 @@ function inUse(bg: Paint, fg: Paint, accent: Paint, s: Style, n: number, num = "
       role: "h2", font: s.head, size: 56, weight: s.headWeight, uppercase: s.upper, color: accent, valign: "bottom", lineHeight: 1, tracking: s.tracking,
     }),
     pageNo(n, s, fg),
+  ]);
+}
+
+function iconography(bg: Paint, fg: Paint, s: Style, n: number) {
+  const glyphs = ["✦", "✧", "◆", "◇", "●", "○", "▲", "△", "■", "□", "✕", "✚", "❖", "✱", "⌘", "⌂", "➜", "✓"];
+  const cols = 6, gap = 16, w = (SLIDE_W - M * 2 - gap * (cols - 1)) / cols, h = 150;
+  return slide("Iconography", bg, [
+    ...runningHead("Iconography", "Icon set", s),
+    text(M, 110, 800, 60, "Iconography", { role: "h3", font: s.label, size: 16, color: fg, uppercase: true, tracking: .14 }),
+    ...glyphs.flatMap((g, i) => {
+      const x = M + (i % cols) * (w + gap), y = 200 + Math.floor(i / cols) * (h + gap);
+      return [
+        rect(x, y, w, h, "surface"),
+        text(x, y, w, h, g, { font: "sans", size: 44, weight: 400, color: fg, align: "center", valign: "middle" }),
+      ];
+    }),
+    text(M, 720, 900, 60, "One stroke weight, one optical size, drawn on the same grid as the wordmark. Fill the tiles with the set as it grows.", { role: "body", font: "sans", size: 16, color: "muted", lineHeight: 1.5 }),
+    pageNo(n, s),
   ]);
 }
 
@@ -416,3 +434,57 @@ export const LAYOUTS: { id: string; name: string; make: () => Slide }[] = [
     image(0, 0, SLIDE_W, SLIDE_H, { label: "Full-bleed image" }),
   ]) },
 ];
+
+// -------------------------------------------------------- standard pages
+export { SECTION_ORDER, type Section } from "./referenceSpec";
+import type { Section } from "./referenceSpec";
+
+const lum = (hex: string) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return .5;
+  const n = parseInt(m[1], 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+};
+
+/** A Style read off a brand's own type system, so generated pages match it. */
+function styleOf(brand: Brand): Style {
+  return {
+    head: brand.type.h1.face, headWeight: brand.type.h1.weight, upper: !!brand.type.h1.uppercase,
+    tracking: brand.type.h1.face === "serif" ? -.02 : -.01, label: brand.type.h3.face, labelColor: "muted",
+  };
+}
+
+/**
+ * The pages a deck is missing, generated in its own style. Every one is built
+ * against the brand's palette slots and type roles, so it sits beside the
+ * pages that were read from the references as if it came from the same hand.
+ * `n` is each page's number in the finished deck, so the folios are right.
+ */
+export function standardPages(brand: Brand, wanted: { section: Section; n: number }[]): Partial<Record<Section, Slide>> {
+  const s = styleOf(brand);
+  const p = brand.palette;
+  // The cover sits on the hero colour; its text is whichever of ink or paper reads against it.
+  const coverFg: Paint = lum(p.primary.hex) > .55 ? (lum(p.ink.hex) < .5 ? "ink" : "paper") : (lum(p.ink.hex) >= .5 ? "ink" : "paper");
+  const line = brand.tagline?.trim() ? "{tagline}" : "Built to grow with the people who use it.";
+  const out: Partial<Record<Section, Slide>> = {};
+  for (const { section, n } of wanted) {
+    switch (section) {
+      case "cover": out.cover = cover("primary", coverFg, s); break;
+      case "contents": out.contents = contents("paper", "ink", s, INDEX); break;
+      case "statement": out.statement = statement("paper", "ink", "primary", s, "Mission", line, n); break;
+      case "wordmark": out.wordmark = wordmark("primary", coverFg, s, n); break;
+      case "logoScale": out.logoScale = logoScale("paper", "ink", s, n); break;
+      case "clearspace": out.clearspace = clearspace("paper", "ink", s, n); break;
+      case "colour": out.colour = colours("paper", "ink", s, brand, n); break;
+      case "greyscale": out.greyscale = greyscale("paper", "ink", s, n); break;
+      case "typography": out.typography = typography("paper", "ink", s, n); break;
+      case "specimen": out.specimen = specimen("paper", "ink", "primary", s, n); break;
+      case "iconography": out.iconography = iconography("paper", "ink", s, n); break;
+      case "photography": out.photography = photography("paper", "ink", s, n); break;
+      case "inUse": out.inUse = inUse("paper", "paper", "primary", s, n); break;
+      case "closing": out.closing = closing("primary", coverFg, s); break;
+      default: break;
+    }
+  }
+  return out;
+}

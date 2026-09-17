@@ -36,7 +36,7 @@ type Props = {
 };
 
 const box = (b: Block): CSSProperties => ({
-  position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h,
+  position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h, transform: b.rotation ? `rotate(${b.rotation}deg)` : undefined,
 });
 
 export function SlideView({

@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# PDF.js assets copied from the installed package by prepare-pdf.mjs
+/public/vendor/pdfjs/
+
+/test-results/
+/playwright-report/

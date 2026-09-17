@@ -15,7 +15,8 @@ import { SLIDE_H, SLIDE_W, type Brand, type Slide } from "./types";
 
 type Props = {
   state: State;
-  tracing: boolean;
+  /** What the reference pipeline is doing, or null when idle. */
+  tracing: string | null;
   onNewDeck: (templateId: string) => void;
   onOpenDeck: (id: string) => void;
   onDeleteDeck: (id: string) => void;
@@ -91,17 +92,19 @@ export function Dashboard({ state, tracing, onNewDeck, onOpenDeck, onDeleteDeck,
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
             onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) onCreateFromReferences(e.dataTransfer.files); }}
           >
-            <input ref={refsRef} type="file" accept="image/*" multiple hidden onChange={(e) => { if (e.target.files?.length) onCreateFromReferences(e.target.files); e.target.value = ""; }} />
+            <input ref={refsRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" multiple hidden onChange={(e) => { if (e.target.files?.length) onCreateFromReferences(e.target.files); e.target.value = ""; }} />
             <button
               type="button"
-              disabled={tracing}
+              disabled={!!tracing}
               onClick={() => refsRef.current?.click()}
               className="flex h-full min-h-[212px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-ink-700 bg-ink-900/40 p-4 text-center transition-colors hover:border-ink-500 disabled:opacity-60"
             >
               <span className="grid size-9 place-items-center rounded-full border border-ink-700 text-lg text-ink-300">+</span>
-              <span className="text-[13px] font-medium text-ink-100">{tracing ? "Tracing pages…" : "Create a template from references"}</span>
+              <span className="text-[13px] font-medium text-ink-100">{tracing ?? "Create a template from references"}</span>
               <span className="text-[11px] leading-snug text-ink-500">
-                Drop page images of a brand book. Each is traced into an editable page and the set is saved as a template.
+                {tracing
+                  ? "Reading each page on its own — this takes a moment per page."
+                  : "Drop a PDF, page images or contact sheets. Recreate each page, match the type and layouts, then design missing sections for a complete brand book."}
               </span>
             </button>
           </div>

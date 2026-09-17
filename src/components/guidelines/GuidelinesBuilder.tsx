@@ -6,18 +6,19 @@ import { Canvas } from "./Canvas";
 import { Dashboard } from "./Dashboard";
 import { FaceField, Inspector } from "./Inspector";
 import { SlideView } from "./SlideView";
-import { STORAGE_KEY, current, init, persist, reducer, shrinkImage } from "./store";
+import { STORAGE_KEY, current, persist, reducer, shrinkImage, type State } from "./store";
 import { LAYOUTS, TEMPLATES } from "./templates";
-import { TraceUnavailable, traceWithAI } from "./aiTrace";
-import { brandFromPalette, traceReference } from "./trace";
-import { SLIDE_H, SLIDE_W, isShippedFace, uid, type Brand, type Project, type Slide, type TokenKey, type TypeRole, type TypeStyle } from "./types";
+import { buildReferenceTemplate, type ReferenceProgress } from "./referencePipeline";
+import { ReferenceReport, ReferenceStatus } from "./ReferenceReport";
+import { googleFontUrl } from "./referenceSpec";
+import { SLIDE_H, SLIDE_W, isShippedFace, uid, type Brand, type Project, type TokenKey, type TypeRole, type TypeStyle } from "./types";
 import styles from "./guidelines.module.css";
 
 /**
  * Brand guidelines, per client, from a handful of starter decks.
  *
- * Everything lives in the browser: decks persist to localStorage and never
- * leave the machine. Export is a JSON file (to hand a deck to a colleague or
+ * Everything lives in the browser: decks persist in the browser. Reference analysis sends page images
+ * to the configured model through /api/trace. Export is a JSON file (to hand a deck to a colleague or
  * back it up) and the browser's own print-to-PDF, which prints each page at
  * its native 1600×900 — the same slide renderer, unscaled.
  */
@@ -33,8 +34,8 @@ function googleFamilies(project: Project) {
   return [...faces];
 }
 
-export function GuidelinesBuilder() {
-  const [state, dispatch] = useReducer(reducer, undefined, init);
+export function GuidelinesBuilder({ initialState }: { initialState: State }) {
+  const [state, dispatch] = useReducer(reducer, initialState);
   const [toast, setToast] = useState<string | null>(null);
   const [panel, setPanel] = useState<"decks" | "brand">("decks");
   const [printing, setPrinting] = useState(false);
@@ -43,12 +44,14 @@ export function GuidelinesBuilder() {
   /** Off means changes stay in memory until Save; the choice itself is remembered. */
   const [autosave, setAutosave] = useState(() => localStorage.getItem(`${STORAGE_KEY}.autosave`) !== "off");
   const [savedAt, setSavedAt] = useState(() => Date.now());
-  /** How references are read: the model behind /api/trace, or the local tracer. */
-  const [tracer, setTracer] = useState<"ai" | "local">("ai");
+  const [referenceProgress, setReferenceProgress] = useState<ReferenceProgress | null>(null);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
+  const referenceBusy = useRef(false);
   const logoRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const refsRef = useRef<HTMLInputElement>(null);
-  const [tracing, setTracing] = useState(false);
+  /** What the reference pipeline is doing right now, or null when idle. */
+  const [tracing, setTracing] = useState<string | null>(null);
 
   const project = current(state);
   const slide = project.slides[state.slide];
@@ -86,7 +89,7 @@ export function GuidelinesBuilder() {
       if (document.getElementById(id)) continue;
       const link = document.createElement("link");
       link.id = id; link.rel = "stylesheet";
-      link.href = `https://fonts.googleapis.com/css2?family=${family.trim().replace(/\s+/g, "+")}:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap`;
+      link.href = googleFontUrl(family);
       document.head.appendChild(link);
     }
   }, [families]);
@@ -130,96 +133,48 @@ export function GuidelinesBuilder() {
   };
   const openDeck = (id: string) => { dispatch({ type: "open", id }); setView("editor"); };
 
-  /**
-   * Every image becomes a page. The model reads the page — real words, roles,
-   * a palette — when /api/trace has a key; otherwise the local tracer recovers
-   * the layout with placeholders, and says so.
-   */
-  const tracePages = async (files: FileList) => {
-    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (!images.length) throw new Error("no images");
-    const pages: Slide[] = [];
-    const colours: string[] = [];
-    let slots: Record<TokenKey, string> | null = null;
-    // The palette comes from the page that states one — most swatches wins.
-    let slotsScore = -1;
-    let usedModel = false;
-    for (const [i, file] of images.entries()) {
-      const src = await shrinkImage(file, 1600);
-      let result: { slide: Slide; palette: string[] };
-      if (tracer === "ai") {
-        try {
-          const ai = await traceWithAI(src);
-          result = ai;
-          if (ai.slots && ai.swatches > slotsScore) { slots = ai.slots; slotsScore = ai.swatches; }
-          usedModel = true;
-        } catch (err) {
-          if (!(err instanceof TraceUnavailable)) throw err;
-          // No key on this deployment: fall back for this and every later page.
-          setTracer("local");
-          result = await traceReference(src);
-        }
-      } else {
-        result = await traceReference(src);
-      }
-      if (!usedModel) result.slide.name = `Ref ${i + 1} · ${file.name.replace(/\.[^.]+$/, "")}`;
-      pages.push(result.slide);
-      for (const hex of result.palette) if (!colours.includes(hex)) colours.push(hex);
-    }
-    return { pages, colours, slots, usedModel };
+  const updateReference = (progress: ReferenceProgress) => {
+    setReferenceProgress(progress); setTracing(progress.message);
   };
-
-  /** From the dashboard: references become a deck, saved as a template at once. */
   const createTemplateFromReferences = async (files: FileList) => {
+    if (referenceBusy.current) return;
     const name = window.prompt("Template name", "Reference template")?.trim();
     if (!name) return;
-    setTracing(true);
+    referenceBusy.current = true;
+    setReferenceError(null); setReferenceProgress(null); setTracing("Preparing references…");
     try {
-      const { pages, colours, slots, usedModel } = await tracePages(files);
-      const brand = brandFromPalette(name, colours);
-      if (slots) for (const k of Object.keys(slots) as TokenKey[]) brand.palette[k] = { ...brand.palette[k], hex: slots[k] };
-      dispatch({ type: "newFromPages", client: name, brand, slides: pages });
+      const result = await buildReferenceTemplate(Array.from(files), name, updateReference);
+      dispatch({ type: "newFromPages", client: name, brand: result.brand, slides: result.slides });
       dispatch({ type: "saveTemplate", name });
-      setPanel("brand");
-      setView("editor");
-      setToast(usedModel
-        ? `${pages.length} page${pages.length > 1 ? "s" : ""} read by the model and saved as “${name}” — check the words, then Save as template again.`
-        : `${pages.length} page${pages.length > 1 ? "s" : ""} traced locally (no model key on this deployment) and saved as “${name}”. Text is placeholders.`);
+      setPanel("brand"); setView("editor"); setReferenceProgress(null);
+      setToast(`${result.sources} reference pages recreated; ${result.generated} missing sections designed. Review the page report before export.`);
     } catch (err) {
-      setToast(err instanceof Error && err.message !== "no images" ? err.message : "Drop image files of the pages you want to replicate.");
-    } finally {
-      setTracing(false);
-    }
+      setReferenceError(err instanceof Error ? err.message : "Reference generation failed. Retry the import.");
+    } finally { setTracing(null); referenceBusy.current = false; }
+  };
+
+  const traceFiles = async (files: FileList) => {
+    if (referenceBusy.current) return;
+    referenceBusy.current = true;
+    setReferenceError(null); setReferenceProgress(null); setTracing("Preparing references…");
+    try {
+      const result = await buildReferenceTemplate(Array.from(files), project.client, updateReference, false);
+      dispatch({ type: "addPages", slides: result.slides });
+      setReferenceProgress(null);
+      setToast(`${result.sources} reference pages recreated and added.`);
+    } catch (err) {
+      setReferenceError(err instanceof Error ? err.message : "Reference import failed. Retry the import.");
+    } finally { setTracing(null); referenceBusy.current = false; }
   };
 
   const saveTemplate = () => {
     const name = window.prompt("Template name", `${project.client} template`)?.trim();
     if (!name) return;
     dispatch({ type: "saveTemplate", name });
-    setToast(`Saved “${name}” — it is now under New deck from.`);
+    setToast(`Saved “${name}” to your templates.`);
   };
-
   const setRole = (role: TypeRole, patch: Partial<TypeStyle>) =>
     brand({ type: { ...project.brand.type, [role]: { ...project.brand.type[role], ...patch } } });
-
-  /** Each reference image becomes a page: its layout as blocks, itself as an underlay. */
-  const traceFiles = async (files: FileList) => {
-    setTracing(true);
-    try {
-      const { pages, colours: found } = await tracePages(files);
-      dispatch({ type: "addPages", slides: pages });
-      // Colours seen in the references join Extras, where they can be assigned to slots.
-      const have = new Set(project.brand.extras.map((e) => e.hex.toLowerCase()));
-      const extras = [...project.brand.extras];
-      for (const hex of found) if (!have.has(hex.toLowerCase()) && extras.length < 12) { have.add(hex.toLowerCase()); extras.push({ name: `Ref ${extras.length + 1}`, hex }); }
-      if (extras.length !== project.brand.extras.length) dispatch({ type: "brand", patch: { extras } });
-      setToast(`${pages.length} page${pages.length > 1 ? "s" : ""} added.`);
-    } catch {
-      setToast("Couldn't read one of those images.");
-    } finally {
-      setTracing(false);
-    }
-  };
 
   const inputCls = "h-7 w-full min-w-0 rounded-md border border-ink-700 bg-ink-850 px-2 font-mono text-[11px] text-ink-100 outline-none focus:border-ink-500";
   const btn = "h-7 rounded-md border border-ink-700 bg-ink-850 px-2.5 font-mono text-[11px] text-ink-300 transition-colors hover:border-ink-600 hover:text-ink-50 disabled:opacity-40";
@@ -227,6 +182,7 @@ export function GuidelinesBuilder() {
   if (view === "dashboard") {
     return (
       <>
+        <ReferenceStatus progress={referenceProgress} active={!!tracing} error={referenceError} />
         <Dashboard
           state={state}
           tracing={tracing}
@@ -245,6 +201,8 @@ export function GuidelinesBuilder() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ReferenceStatus progress={referenceProgress} active={!!tracing} error={referenceError} />
+      <ReferenceReport slides={project.slides} onPage={(index) => dispatch({ type: "goto", slide: index })} />
       {/* ------------------------------------------------------- top bar */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-800 bg-ink-900 px-3 py-2">
         <button className={btn} onClick={() => setView("dashboard")} title="Back to templates and decks">← Decks</button>
@@ -267,7 +225,9 @@ export function GuidelinesBuilder() {
           >
             <span className={`absolute top-0.5 size-2.5 rounded-full bg-ink-50 transition-transform ${autosave ? "translate-x-3.5" : "translate-x-0.5"}`} />
           </button>
-          {autosave
+          {autosave && dirty
+            ? <span>Saving…</span>
+            : autosave
             ? <span>Autosaved {new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
             : dirty
               ? <><span className="text-amber-400">Unsaved changes</span><button className={btn} onClick={saveNow}>Save</button></>
@@ -314,15 +274,15 @@ export function GuidelinesBuilder() {
               </section>
               <section>
                 <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-ink-500">Replicate a reference</h3>
-                <input ref={refsRef} type="file" accept="image/*" multiple hidden onChange={(e) => { if (e.target.files?.length) void traceFiles(e.target.files); e.target.value = ""; }} />
+                <input ref={refsRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" multiple hidden onChange={(e) => { if (e.target.files?.length) void traceFiles(e.target.files); e.target.value = ""; }} />
                 <button
-                  disabled={tracing}
+                  disabled={!!tracing}
                   onClick={() => refsRef.current?.click()}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
                   onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) void traceFiles(e.dataTransfer.files); }}
                   className="w-full rounded-lg border border-dashed border-ink-700 px-3 py-4 text-center text-[12px] text-ink-300 transition-colors hover:border-ink-500 disabled:opacity-50"
                 >
-                  {tracing ? "Tracing…" : "Drop page images here"}
+                  {tracing ?? "Drop PDF or page images here"}
                   <span className="mt-1 block text-[11px] leading-snug text-ink-600">Each becomes an editable page: photos cropped in, shapes and text boxes placed, colours added to Extras. Then save the deck as a template.</span>
                 </button>
               </section>
