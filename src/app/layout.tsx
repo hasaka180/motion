@@ -52,7 +52,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full">
         <Sidebar />
-        <main className="lg:pl-72">{children}</main>
+        {/* Only the rail is reserved; the open menu lays over the page. */}
+        <main className="lg:pl-18">{children}</main>
       </body>
     </html>
   );
