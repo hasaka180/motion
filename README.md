@@ -46,7 +46,7 @@ npm run lint
 | -------------- | -------------------------- | ----- |
 | `/hero`        | Hero Sections              | 11    |
 | `/intro`       | Intro Animations           | 4     |
-| `/text`        | Text Animations            | 5     |
+| `/text`        | Text Animations            | 6     |
 | `/carousel`    | Carousels                  | 4     |
 | `/scroll`      | Scroll Animations          | 7     |
 | `/hover`       | Hover & Micro-interactions | 5     |

@@ -19,6 +19,24 @@ const SHARED =
   "Root the component in `absolute inset-0` so it fills whatever box it is given.";
 
 export const prompts: Record<string, string> = {
+  "text/LiquidTextReveal": p(`
+    Recreate the liquid text entrance from bleibtgleich.dev with original copy.
+    Keep the type stationary. Give each line a unique inline SVG filter with
+    feGaussianBlur followed by feColorMatrix. Start blur at 50px and alpha at
+    gain 20, offset -8: invisible text first forms connected ink shapes, then
+    resolves into crisp letters. Animate blur to zero over 1.2 seconds with
+    cubic-bezier(0.25,1,0.5,1), stagger lines by 0.1 seconds, and relax alpha
+    gain to 1 and offset to 0 linearly over the final 35% of each animation.
+    Remove the filter on completion to restore native text rendering.
+    Use a warm gray editorial stage, large tightly tracked sans-serif type,
+    monospace captions and a reference credit. Start once in view after fonts
+    load; replay by remounting. Use unique React IDs for multiple instances.
+    Preserve readable text for screen readers and without JavaScript; reduced
+    motion immediately shows unfiltered text. Stop animation controls and
+    disconnect observers on unmount. Fit type to the container on mobile.
+    Self-contained React client component, TypeScript, Tailwind and the existing
+    Motion animate API; no new dependencies or borrowed site assets.
+  `),
   // ---------------------------------------------------------------- hero
   "hero/AshenEclipseHero": p(`
     Build a scroll-scrubbed image-sequence hero from thirty consecutive

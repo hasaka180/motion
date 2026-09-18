@@ -34,8 +34,8 @@ export const categories: Category[] = [
     slug: "text",
     title: "Text Animations",
     blurb:
-      "Type that arrives with intent — hover glitches, word staggers, character scrambles, masked line reveals and gradient sweeps.",
-    count: 5,
+      "Type that arrives with intent — liquid reveals, hover glitches, word staggers, character scrambles, masked line reveals and gradient sweeps.",
+    count: 6,
     gradient: ["#f59e0b", "#ef4444"],
   },
   {

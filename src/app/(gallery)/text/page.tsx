@@ -6,6 +6,7 @@ import { StaggerWords } from "@/components/demos/text/StaggerWords";
 import { ScrambleText } from "@/components/demos/text/ScrambleText";
 import { MaskedLineReveal } from "@/components/demos/text/MaskedLineReveal";
 import { GradientShine } from "@/components/demos/text/GradientShine";
+import { LiquidTextReveal } from "@/components/demos/text/LiquidTextReveal";
 
 export const metadata = { title: "Text Animations" };
 
@@ -16,6 +17,16 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="grid gap-6 xl:grid-cols-2">
+        <DemoCard
+          id="text/LiquidTextReveal"
+          title="Liquid text reveal"
+          description="Inspired by bleibtgleich.dev — soft, connected ink shapes resolve into crisp typography, one line at a time."
+          tags={["SVG filter", "alpha threshold", "line stagger"]}
+          stageClassName="h-[420px] sm:h-[480px]"
+        >
+          <LiquidTextReveal />
+        </DemoCard>
+
         <DemoCard
           id="text/GlitchOnHover"
           title="Glitch on hover"
