@@ -164,17 +164,27 @@ test("trace API rejects unknown modes and reports truncated output", async () =>
   const originalKey = process.env.OPENAI_API_KEY, originalFetch = global.fetch;
   process.env.OPENAI_API_KEY = "fixture-key";
   const request = (mode: string) => new Request("http://localhost/api/trace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode, images: ["data:image/png;base64,AAAA"] }) });
+  let modelRequest: Record<string, unknown> = {};
   try {
     expect((await POST(request("constructor"))).status).toBe(400);
-    global.fetch = async () => Response.json({ choices: [{ finish_reason: "length", message: { content: "{}" } }] });
+    global.fetch = async (_input, init) => {
+      modelRequest = JSON.parse(String(init?.body));
+      return Response.json({ choices: [{ finish_reason: "length", message: { content: "{}" } }] });
+    };
     const truncated = await POST(request("page"));
     expect(truncated.status).toBe(502);
     expect((await truncated.json()).error).toContain("truncated");
+    expect(modelRequest).toMatchObject({ model: "gpt-5.6-sol", reasoning_effort: "low" });
+    expect(modelRequest).not.toHaveProperty("temperature");
     global.fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ ...layout("other"), blocks: [] }) } }] });
     // A blank source must survive; an empty generated design must not.
     expect((await POST(request("page"))).status).toBe(200);
     const generated = new Request("http://localhost/api/trace", { method: "POST", body: JSON.stringify({ mode: "generate", images: ["data:image/png;base64,AAAA"], context: { section: "voice" } }) });
     expect((await POST(generated)).status).toBe(502);
+    global.fetch = async () => Response.json({ error: { code: "unsupported_value", param: "temperature" } }, { status: 400 });
+    const rejected = await POST(request("page"));
+    expect(rejected.status).toBe(502);
+    expect((await rejected.json()).error).toContain("unsupported_value (temperature)");
   } finally {
     global.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = originalKey;

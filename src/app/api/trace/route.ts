@@ -7,6 +7,7 @@ export const maxDuration = 120;
 // silently selecting the higher-cost model.
 const configuredModel = process.env.OPENAI_MODEL ?? "gpt-5.6-sol";
 const MODEL = /astra/i.test(configuredModel) ? "gpt-5.6-sol" : configuredModel;
+const MODEL_OPTIONS = /^gpt-5\.6(?:-sol)?$/i.test(MODEL) ? { reasoning_effort: "low" } : {};
 const MAX_IMAGE_CHARS = 3_500_000;
 const SECTIONS = [...SECTION_ORDER, "other"];
 const HEX = { type: "string", pattern: "^#[0-9a-fA-F]{6}$" };
@@ -54,6 +55,16 @@ const modes = {
   generate: { schema: pageSchema, prompt: `${PAGE}\nDESIGN A NEW PAGE for the requested missing section. Reference images are STYLE EXAMPLES, not a page to transcribe. Use context.style.design and the supplied editable reference layouts to match margins, grid, whitespace, title treatment, running heads, typography, palette and recurring visual devices. Do not fall back to a generic title + three cards layout. Make the actual requested diagrams, specimens and applications as editable blocks with substantive copy. Use {brand}, {tagline}, {edition} tokens where appropriate. All new brand strategy, dimensions or rules not present in evidence are proposed draft guidance and must be identified in warnings. Do not fabricate contact details or certifications. Set image labels to precise photo subjects, composition and mood for placeholder matching. Use a 1600×900 canvas. Fit all text inside its box and avoid unintended overlaps. Follow the section brief and final page inventory supplied in context. Produce the requested section exactly.` },
 } as const;
 const fail = (error: string, status: number) => Response.json({ error }, { status });
+async function upstreamFailure(response: Response) {
+  let detail = "";
+  try {
+    const body = await response.json() as { error?: { code?: unknown; param?: unknown } };
+    const code = typeof body.error?.code === "string" ? body.error.code : "";
+    const param = typeof body.error?.param === "string" ? body.error.param : "";
+    if (code || param) detail = `: ${code || "invalid request"}${param ? ` (${param})` : ""}`;
+  } catch { /* Keep the stable generic error for non-JSON upstream responses. */ }
+  return fail(`Reference model request failed (${response.status})${detail}. Check model access, quota and the deployment key.`, response.status === 429 ? 429 : 502);
+}
 
 export async function POST(request: Request) {
   const key = process.env.OPENAI_API_KEY;
@@ -87,7 +98,7 @@ export async function POST(request: Request) {
       method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(110_000)]),
       body: JSON.stringify({
-        model: MODEL, temperature: 0, max_completion_tokens: 16000,
+        model: MODEL, ...MODEL_OPTIONS, max_completion_tokens: 16000,
         response_format: { type: "json_schema", json_schema: { name: `reference_${mode}`, strict: true, schema: spec.schema } },
         messages: [
           { role: "system", content: SYSTEM },
@@ -96,7 +107,7 @@ export async function POST(request: Request) {
       }),
     });
   } catch { return fail("Reference analysis timed out or could not reach the model. Retry the import.", 504); }
-  if (!upstream.ok) return fail(`Reference model request failed (${upstream.status}). Check model access, quota and the deployment key.`, upstream.status === 429 ? 429 : 502);
+  if (!upstream.ok) return upstreamFailure(upstream);
   try {
     const data = await upstream.json();
     const choice = data.choices?.[0];
