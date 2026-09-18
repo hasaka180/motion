@@ -19,6 +19,27 @@ const SHARED =
   "Root the component in `absolute inset-0` so it fills whatever box it is given.";
 
 export const prompts: Record<string, string> = {
+  "intro/FloatingImageAssemble": p(`
+    Create an image intro on an almost-black stage: eight rectangular image
+    fragments float at different depths with subtle drift and rotation. Distant
+    pieces are smaller and softly blurred. After a 1.65-second floating hold,
+    bring all twenty-four tiles of a 6-by-4 grid forward into one seamless photograph.
+    Project depth with 850/(850+z), easing each tile's depth to zero as it grows
+    and moves into its matching grid position over 2.75 seconds, with seeded
+    delays up to 0.65 seconds. Fade in the remaining tiles as assembly begins.
+    Sample each tile from the correct region of ONE shared object-fit-cover
+    source crop. Use deterministic randomness, resolve blur and rotation to
+    zero, and draw the complete image at rest to eliminate seams. Fade in a
+    minimal headline after assembly. Total sequence is 5.8 seconds, then stop.
+    Use /images/darwin-botanical.webp as the default asset. Add a local image
+    picker and reassemble button that preserves the chosen image. Revoke object
+    URLs and show decoding errors. Use Canvas 2D, capped DPR, ResizeObserver,
+    IntersectionObserver and requestAnimationFrame; pause the clock offscreen
+    and in hidden tabs, and release all resources on unmount. Reduced motion
+    shows the final image immediately. Keep the canvas accessible and buttons
+    keyboard-operable. One self-contained React/TypeScript/Tailwind component,
+    no dependencies. Fill an absolute inset-0 responsive gallery stage.
+  `),
   "text/LiquidTextReveal": p(`
     Recreate the liquid text entrance from bleibtgleich.dev with original copy.
     Keep the type stationary. Give each line a unique inline SVG filter with

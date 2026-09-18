@@ -5,6 +5,7 @@ import { ParticleAssemble } from "@/components/demos/intro/ParticleAssemble";
 import { CounterPreloader } from "@/components/demos/intro/CounterPreloader";
 import { CurtainReveal } from "@/components/demos/intro/CurtainReveal";
 import { LogoDrawIntro } from "@/components/demos/intro/LogoDrawIntro";
+import { FloatingImageAssemble } from "@/components/demos/intro/FloatingImageAssemble";
 
 export const metadata = { title: "Intro Animations" };
 
@@ -15,6 +16,16 @@ export default function Page() {
     <>
       <PageHeader category={category} />
       <div className="flex flex-col gap-6">
+        <DemoCard
+          id="intro/FloatingImageAssemble"
+          title="Floating image assembly"
+          description="Fragments drift at different depths, travel forward, and meet as one seamless image. Choose your own image, then reassemble it."
+          tags={["depth projection", "image tiles", "soft focus", "canvas"]}
+          stageClassName="h-[500px] sm:h-[640px]"
+        >
+          <FloatingImageAssemble />
+        </DemoCard>
+
         <DemoCard
           id="intro/ParticleAssemble"
           title="Particle assemble"
